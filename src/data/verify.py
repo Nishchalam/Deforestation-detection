@@ -1,6 +1,6 @@
 from pathlib import Path
 
-dataset = Path("data/raw/EuroSAT_RGB")
+dataset = Path("data/raw/EuroSAT")
 
 assert dataset.exists(), "Dataset not found!"
 
