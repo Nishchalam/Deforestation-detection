@@ -1,6 +1,6 @@
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
 
 # Virtual Environment
 .venv/
@@ -8,18 +8,24 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
-# Model Weights
+# Models
 *.pth
 *.pt
 
-# Dataset
-data/
+# Data
+data/raw/
+data/processed/
+data/external/
 
 # Outputs
 outputs/
 
-# VS Code
+# VSCode
 .vscode/
+
+# Logs
+*.log
 
 # OS
 .DS_Store
+Thumbs.db

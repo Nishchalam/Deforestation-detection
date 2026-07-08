@@ -1,57 +1,97 @@
-# Deforestation Detection using Deep Learning and Sentinel-2 Satellite Imagery
+# 🌍 Deforestation Detection using Deep Learning and Sentinel-2 Satellite Imagery
 
 ## Overview
 
-This project develops an end-to-end deep learning pipeline for automated deforestation detection from satellite imagery.
+This repository presents an end-to-end deep learning pipeline for land-cover classification and deforestation detection using Sentinel-2 satellite imagery.
 
-A ResNet50-based land-cover classifier is first trained on the EuroSAT dataset using transfer learning. The trained classifier is then applied to Sentinel-2 imagery from different years to generate land-cover maps. By comparing these maps, forest-to-non-forest transitions are identified as potential deforestation events.
+The project is divided into two independent modules:
 
----
+1. **Land Cover Classification**
+   - Train and compare multiple CNN architectures on the EuroSAT dataset.
+   - Study the evolution of convolutional neural networks from LeNet to EfficientNet.
 
-## Features
-
-- Transfer Learning using ResNet50
-- EuroSAT Land Cover Classification
-- Sentinel-2 Satellite Image Processing
-- Patch-based Inference
-- Land Cover Mapping
-- Deforestation Detection
-- Change Visualization
-- Confusion Matrix & Classification Report
+2. **Deforestation Detection**
+   - Apply the best-performing classifier to Sentinel-2 imagery.
+   - Generate land-cover maps.
+   - Detect forest-to-non-forest transitions across multiple years.
 
 ---
 
-## Pipeline
+## Objectives
 
-EuroSAT Dataset
+- Perform comprehensive exploratory data analysis (EDA).
+- Build a reproducible preprocessing pipeline.
+- Compare classical and modern CNN architectures.
+- Investigate transfer learning.
+- Visualize learned features using Grad-CAM.
+- Generate land-cover maps.
+- Detect potential deforestation.
+- Compare predictions with Global Forest Watch (future work).
+
+---
+
+## Dataset
+
+### EuroSAT RGB
+
+- 27,000 Sentinel-2 images
+- 10 land-cover classes
+- RGB imagery
+- Image size: 64×64 pixels
+
+### Sentinel-2
+
+Real-world satellite imagery downloaded using the Google Earth Engine API.
+
+---
+
+## CNN Architectures
+
+- LeNet-5
+- AlexNet
+- VGG16
+- GoogLeNet (Inception-v1)
+- ResNet18
+- ResNet50
+- EfficientNet-B0
+
+---
+
+## Project Workflow
+
+Dataset Download
 
 ↓
 
-Image Preprocessing
+Exploratory Data Analysis
 
 ↓
 
-Transfer Learning (ResNet50)
+Preprocessing
 
 ↓
 
-Land Cover Classification
+Data Augmentation
 
 ↓
 
-Sentinel-2 Images
+CNN Training
 
 ↓
 
-Patch Extraction
+Model Comparison
 
 ↓
 
-Inference
+Transfer Learning
 
 ↓
 
-Land Cover Maps
+Sentinel-2 Inference
+
+↓
+
+Land Cover Mapping
 
 ↓
 
@@ -63,52 +103,54 @@ Potential Deforestation Map
 
 ---
 
-## Dataset
-
-### EuroSAT
-
-- 27,000 Sentinel-2 RGB Images
-- 10 Land Cover Classes
-
-### Sentinel-2
-
-- 2017 Image
-- 2026 Image
-
----
-
-## Model
-
-- Backbone: ResNet50
-- Transfer Learning
-- Cross Entropy Loss
-- Adam Optimizer
-
----
-
-## Results
-
-The model predicts land-cover classes for each image patch.
-
-Potential deforestation is identified wherever:
-
-Forest → Non-Forest
-
----
-
-## Future Work
-
-- Multi-spectral Sentinel-2
-- Vision Transformers
-- Semantic Segmentation (U-Net)
-- Global Forest Watch Validation
-- Temporal Deep Learning
-
----
-
 ## Repository Structure
 
-(Add folder tree here)
+(Add directory tree)
+
+---
+
+## Installation
+
+```bash
+git clone https://github.com/Nishchalam/Deforestation-Detection.git
+
+cd Deforestation-Detection
+
+python3 -m venv .venv
+
+source .venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+---
+
+## Download Dataset
+
+```bash
+python src/data/download.py
+```
+
+---
+
+## Project Status
+
+- [x] Repository Setup
+- [x] Dataset Download
+- [ ] Exploratory Data Analysis
+- [ ] Data Preprocessing
+- [ ] LeNet
+- [ ] AlexNet
+- [ ] VGG16
+- [ ] GoogLeNet
+- [ ] ResNet18
+- [ ] ResNet50
+- [ ] EfficientNet
+- [ ] Model Comparison
+- [ ] Transfer Learning
+- [ ] Sentinel-2 Inference
+- [ ] Deforestation Detection
+- [ ] Streamlit Deployment
 
 ---
 
