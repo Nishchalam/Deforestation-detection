@@ -104,7 +104,8 @@ Potential Deforestation Map
 ---
 
 ## Repository Structure
-'''text
+
+```text
 Deforestation-Detection/
 │
 ├── README.md                  # Project overview and documentation
@@ -190,7 +191,6 @@ Deforestation-Detection/
 │
 └── tests/                     # Unit tests
 ```
-
 ## Installation
 
 ```bash
