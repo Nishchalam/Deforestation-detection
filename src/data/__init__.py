@@ -1,0 +1,3 @@
+"""
+Deforestation Detection package.
+"""

@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deforestation_detection"
+version = "0.1.0"
+description = "Land Cover Classification and Deforestation Detection"
+
+[tool.setuptools]
+packages = ["src", "src.data"]

@@ -1,0 +1,13 @@
+LICENSE
+README.md
+pyproject.toml
+deforestation_detection.egg-info/PKG-INFO
+deforestation_detection.egg-info/SOURCES.txt
+deforestation_detection.egg-info/dependency_links.txt
+deforestation_detection.egg-info/top_level.txt
+src/data/__init__.py
+src/data/dataloader.py
+src/data/dataset.py
+src/data/download.py
+src/data/transforms.py
+src/data/verify.py

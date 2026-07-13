@@ -1,10 +1,13 @@
 from pathlib import Path
-
 from torch.utils.data import DataLoader
 
-from .dataset import EuroSATDataset
-from .transforms import train_transform, test_transform
+from src.data.dataset import EuroSATDataset
+from src.data.transforms import (
+    train_transform,
+    test_transform
+)
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def create_dataloaders(
     data_root="data/raw/EuroSAT",
@@ -26,7 +29,7 @@ def create_dataloaders(
 
     batch_size : int
         Batch size.
-
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
     num_workers : int
         Number of workers used by DataLoader.
 
@@ -40,8 +43,15 @@ def create_dataloaders(
     test_loader
     """
 
-    data_root = Path(data_root)
-    processed_root = Path(processed_root)
+    
+    data_root = PROJECT_ROOT / data_root
+    processed_root = PROJECT_ROOT / processed_root
+    #sanity checks
+    assert data_root.exists(), f"Dataset directory not found: {data_root}"
+    assert processed_root.exists(), f"Processed directory not found: {processed_root}"
+    assert (processed_root / "train.csv").exists()
+    assert (processed_root / "validation.csv").exists()
+    assert (processed_root / "test.csv").exists()
 
     train_dataset = EuroSATDataset(
         csv_file=processed_root / "train.csv",
