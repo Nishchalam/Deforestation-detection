@@ -105,9 +105,91 @@ Potential Deforestation Map
 
 ## Repository Structure
 
-(Add directory tree)
-
----
+Deforestation-Detection/
+│
+├── README.md                  # Project overview and documentation
+├── requirements.txt           # Python dependencies
+├── LICENSE
+├── .gitignore
+│
+├── configs/                   # Configuration files
+│   ├── data.yaml
+│   ├── train.yaml
+│   ├── models.yaml
+│   └── inference.yaml
+│
+├── data/
+│   ├── raw/                   # Original datasets
+│   │   └── EuroSAT/
+│   ├── processed/             # Preprocessed datasets
+│   └── external/              # Sentinel-2 imagery, GFW data, etc.
+│
+├── docs/                      # Documentation and references
+│
+├── notebooks/
+│   ├── 01_EDA.ipynb
+│   ├── 02_Preprocessing.ipynb
+│   ├── 03_Training_and_Comparison.ipynb
+│   ├── 04_Transfer_Learning.ipynb
+│   └── 05_Deforestation_Detection.ipynb
+│
+├── outputs/
+│   ├── figures/
+│   ├── models/
+│   ├── predictions/
+│   └── reports/
+│
+├── reports/
+│   ├── figures/
+│   ├── tables/
+│   └── dataset_report.md
+│
+├── src/
+│   ├── data/
+│   │   ├── download.py
+│   │   ├── verify.py
+│   │   ├── preprocessing.py
+│   │   ├── statistics.py
+│   │   └── dataset.py
+│   │
+│   ├── models/
+│   │   ├── lenet.py
+│   │   ├── alexnet.py
+│   │   ├── vgg.py
+│   │   ├── googlenet.py
+│   │   ├── resnet.py
+│   │   ├── efficientnet.py
+│   │   └── __init__.py
+│   │
+│   ├── training/
+│   │   ├── train.py
+│   │   ├── trainer.py
+│   │   └── losses.py
+│   │
+│   ├── evaluation/
+│   │   ├── evaluate.py
+│   │   ├── metrics.py
+│   │   └── confusion_matrix.py
+│   │
+│   ├── inference/
+│   │   ├── patchify.py
+│   │   ├── inference.py
+│   │   ├── reconstruction.py
+│   │   └── change_detection.py
+│   │
+│   ├── visualization/
+│   │   ├── plots.py
+│   │   ├── gradcam.py
+│   │   └── feature_maps.py
+│   │
+│   └── utils/
+│       ├── checkpoint.py
+│       ├── logger.py
+│       ├── seed.py
+│       └── common.py
+│
+└── tests/                     # Unit tests
+```
 
 ## Installation
 
