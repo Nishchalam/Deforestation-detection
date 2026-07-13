@@ -104,7 +104,7 @@ Potential Deforestation Map
 ---
 
 ## Repository Structure
-
+'''text
 Deforestation-Detection/
 │
 ├── README.md                  # Project overview and documentation
