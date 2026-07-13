@@ -1,0 +1,21 @@
+experiment:
+  name: "googlenet"
+  seed: 42
+  device: "cuda"
+
+model:
+  name: "googlenet"
+  in_channels: 3
+  num_classes: 10
+
+dataset:
+  name: "EuroSAT"
+  image_size: 224
+  batch_size: 64
+
+training:
+  epochs: 40
+  optimizer:
+    name: "adam"
+    lr: 0.0005
+    weight_decay: 0.0001

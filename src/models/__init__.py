@@ -4,6 +4,7 @@ from .vgg import VGG16
 from .googlenet import GoogLeNet
 from .resnet import ResNet18, ResNet50
 from .efficientnet import EfficientNetB0
+from .zoo import create_model
 
 __all__ = [
     "LeNet",
@@ -13,4 +14,5 @@ __all__ = [
     "ResNet18",
     "ResNet50",
     "EfficientNetB0",
+    "create_model",
 ]

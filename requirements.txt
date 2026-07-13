@@ -42,3 +42,4 @@ notebook
 # Utilities
 rich
 tensorboard
+pytest

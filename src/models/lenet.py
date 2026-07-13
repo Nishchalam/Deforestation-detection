@@ -43,9 +43,9 @@ original paper.
 
 import torch
 import torch.nn as nn
+from src.models.common import BaseCNN
 
-
-class LeNet(nn.Module):
+class LeNet(BaseCNN):
     """
     Adapted LeNet-5 for EuroSAT classification.
 

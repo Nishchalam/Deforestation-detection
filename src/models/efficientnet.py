@@ -30,6 +30,8 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
+from src.models.common import BaseCNN
 
 
 class Swish(nn.Module):
@@ -124,7 +126,7 @@ class MBConv(nn.Module):
             return self.block(x)
 
 
-class EfficientNetB0(nn.Module):
+class EfficientNetB0(BaseCNN):
     """
     EfficientNet-B0 adapted for EuroSAT classification.
     """

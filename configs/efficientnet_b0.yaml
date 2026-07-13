@@ -1,0 +1,21 @@
+experiment:
+  name: "efficientnet_b0"
+  seed: 42
+  device: "cuda"
+
+model:
+  name: "efficientnet-b0"
+  in_channels: 3
+  num_classes: 10
+
+dataset:
+  name: "EuroSAT"
+  image_size: 224
+  batch_size: 128
+
+training:
+  epochs: 50
+  optimizer:
+    name: "adam"
+    lr: 0.001
+    weight_decay: 0.0001

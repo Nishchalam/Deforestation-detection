@@ -63,9 +63,9 @@ Adaptation for this Project
 
 import torch
 import torch.nn as nn
+from src.models.common import BaseCNN
 
-
-class VGG16(nn.Module):
+class VGG16(BaseCNN):
     """
     VGG16 adapted for EuroSAT classification.
 

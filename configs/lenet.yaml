@@ -1,0 +1,21 @@
+experiment:
+  name: "lenet"
+  seed: 42
+  device: "cuda"
+
+model:
+  name: "lenet"
+  in_channels: 3
+  num_classes: 10
+
+dataset:
+  name: "EuroSAT"
+  image_size: 224
+  batch_size: 32
+
+training:
+  epochs: 20
+  optimizer:
+    name: "adam"
+    lr: 0.001
+    weight_decay: 0.0001

@@ -29,7 +29,7 @@ Adaptation for this Project
 
 import torch
 import torch.nn as nn
-
+from src.models.common import BaseCNN
 
 class BasicBlock(nn.Module):
     """
@@ -157,7 +157,7 @@ class BottleneckBlock(nn.Module):
         return out
 
 
-class ResNet(nn.Module):
+class ResNet(BaseCNN):
     """
     Base ResNet architecture.
     """

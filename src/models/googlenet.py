@@ -58,6 +58,7 @@ Adaptation for this Project
 
 import torch
 import torch.nn as nn
+from src.models.common import BaseCNN
 
 
 class ConvBlock(nn.Module):
@@ -120,7 +121,7 @@ class InceptionModule(nn.Module):
         return torch.cat([out1, out2, out3, out4], dim=1)
 
 
-class GoogLeNet(nn.Module):
+class GoogLeNet(BaseCNN):
     """
     Adapted GoogLeNet (Inception-v1) for EuroSAT classification.
     """

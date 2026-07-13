@@ -53,9 +53,9 @@ Adaptation for this Project
 
 import torch
 import torch.nn as nn
+from src.models.common import BaseCNN
 
-
-class AlexNet(nn.Module):
+class AlexNet(BaseCNN):
     """
     Adapted AlexNet for EuroSAT classification.
 
