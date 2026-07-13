@@ -108,88 +108,35 @@ Potential Deforestation Map
 ```text
 Deforestation-Detection/
 │
-├── README.md                  # Project overview and documentation
-├── requirements.txt           # Python dependencies
-├── LICENSE
-├── .gitignore
-│
-├── configs/                   # Configuration files
-│   ├── data.yaml
-│   ├── train.yaml
-│   ├── models.yaml
-│   └── inference.yaml
-│
 ├── data/
-│   ├── raw/                   # Original datasets
-│   │   └── EuroSAT/
-│   ├── processed/             # Preprocessed datasets
-│   └── external/              # Sentinel-2 imagery, GFW data, etc.
-│
-├── docs/                      # Documentation and references
+│   ├── raw/
+│   ├── processed/
 │
 ├── notebooks/
 │   ├── 01_EDA.ipynb
-│   ├── 02_Preprocessing.ipynb
-│   ├── 03_Training_and_Comparison.ipynb
-│   ├── 04_Transfer_Learning.ipynb
-│   └── 05_Deforestation_Detection.ipynb
-│
-├── outputs/
-│   ├── figures/
-│   ├── models/
-│   ├── predictions/
-│   └── reports/
-│
-├── reports/
-│   ├── figures/
-│   ├── tables/
-│   └── dataset_report.md
+│   └── 02_Preprocessing.ipynb
 │
 ├── src/
 │   ├── data/
 │   │   ├── download.py
 │   │   ├── verify.py
-│   │   ├── preprocessing.py
-│   │   ├── statistics.py
-│   │   └── dataset.py
+│   │   ├── dataset.py
+│   │   ├── transforms.py
+│   │   └── dataloader.py
 │   │
 │   ├── models/
-│   │   ├── lenet.py
-│   │   ├── alexnet.py
-│   │   ├── vgg.py
-│   │   ├── googlenet.py
-│   │   ├── resnet.py
-│   │   ├── efficientnet.py
-│   │   └── __init__.py
-│   │
 │   ├── training/
-│   │   ├── train.py
-│   │   ├── trainer.py
-│   │   └── losses.py
-│   │
 │   ├── evaluation/
-│   │   ├── evaluate.py
-│   │   ├── metrics.py
-│   │   └── confusion_matrix.py
-│   │
 │   ├── inference/
-│   │   ├── patchify.py
-│   │   ├── inference.py
-│   │   ├── reconstruction.py
-│   │   └── change_detection.py
-│   │
 │   ├── visualization/
-│   │   ├── plots.py
-│   │   ├── gradcam.py
-│   │   └── feature_maps.py
-│   │
 │   └── utils/
-│       ├── checkpoint.py
-│       ├── logger.py
-│       ├── seed.py
-│       └── common.py
 │
-└── tests/                     # Unit tests
+├── reports/
+├── outputs/
+├── configs/
+│
+├── requirements.txt
+└── README.md
 ```
 ## Installation
 
@@ -214,25 +161,50 @@ python src/data/download.py
 ```
 
 ---
-
 ## Project Status
 
-- [x] Repository Setup
-- [x] Dataset Download
-- [ ] Exploratory Data Analysis
-- [ ] Data Preprocessing
-- [ ] LeNet
+### Phase 1 — Project Setup
+- [x] GitHub Repository
+- [x] Project Structure
+- [x] Python Environment
+- [x] Requirements
+- [x] Kaggle API Setup
+
+### Phase 2 — Data Pipeline
+- [x] Automated EuroSAT Download
+- [x] Dataset Verification
+- [x] Exploratory Data Analysis
+- [x] Stratified Train / Validation / Test Split
+- [x] CSV Metadata Generation
+- [x] Custom PyTorch Dataset
+- [x] Transform Pipeline
+- [x] DataLoader Pipeline
+
+### Phase 3 — Model Development
+- [ ] LeNet-5
 - [ ] AlexNet
 - [ ] VGG16
 - [ ] GoogLeNet
 - [ ] ResNet18
 - [ ] ResNet50
-- [ ] EfficientNet
+- [ ] EfficientNet-B0
 - [ ] Model Comparison
-- [ ] Transfer Learning
-- [ ] Sentinel-2 Inference
-- [ ] Deforestation Detection
-- [ ] Streamlit Deployment
+
+### Phase 4 — Deforestation Detection
+- [ ] Google Earth Engine
+- [ ] Sentinel-2 Image Download
+- [ ] Patch Extraction
+- [ ] Land Cover Mapping
+- [ ] Change Detection
+- [ ] Deforestation Mapping
+
+### Phase 5 — Explainability
+- [ ] Feature Maps
+- [ ] Grad-CAM
+- [ ] Error Analysis
+
+### Phase 6 — Deployment
+- [ ] Streamlit Application
 
 ---
 
