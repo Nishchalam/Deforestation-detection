@@ -4,41 +4,16 @@ An end-to-end deep learning framework and educational resource for land-cover cl
 
 ---
 
-## Table of Contents
-1. [Project Overview](#project-overview)
-2. [Current Project Status](#current-project-status)
-3. [Repository Structure](#repository-structure)
-4. [Complete Workflow Diagram](#complete-workflow-diagram)
-5. [CNN Evolution](#cnn-evolution)
-6. [Benchmark Results](#benchmark-results)
-7. [Sentinel-2 Pipeline](#sentinel-2-pipeline)
-8. [Deforestation Detection Pipeline](#deforestation-detection-pipeline)
-9. [Validation Pipeline](#validation-pipeline)
-10. [Explainable AI & interpretability](#explainable-ai--interpretability)
-11. [Repository Screenshots (Placeholders)](#repository-screenshots-placeholders)
-12. [Generated Reports](#generated-reports)
-13. [Example Outputs & Figures](#example-outputs--figures)
-14. [How to Train](#how-to-train)
-15. [How to Evaluate](#how-to-evaluate)
-16. [How to Run Inference](#how-to-run-inference)
-17. [How to Detect Deforestation](#how-to-detect-deforestation)
-18. [How to Generate Explanations](#how-to-generate-explanations)
-19. [Results Summary](#results-summary)
-20. [Future Improvements](#future-improvements)
-21. [References](#references)
-22. [Citation](#citation)
-23. [License](#license)
+## 📚 Documentation Hub
+Explore our detailed guides and academic reports inside the [docs/](docs/) directory:
+* **[PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md)**: High-level companion guide for students and recruiters explaining project objectives, structures, and results.
+* **[IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md)**: Step-by-step build manual to reconstruct the repository chronologically from scratch.
+* **[TECHNICAL_REPORT.md](docs/TECHNICAL_REPORT.md)**: Academic-grade system description detailing mathematical formulations and design trade-offs.
+* **[RESEARCH_PAPER.md](docs/RESEARCH_PAPER.md)**: IEEE-formatted scientific manuscript draft.
 
 ---
 
-# Project Overview
-The objective of this project is to build a production-quality deep learning system to identify land cover categories and monitor forest degradation over time. The project consists of two primary stages:
-1. **Land-Cover Classification**: Standardized training and benchmarking of classic and modern Convolutional Neural Network (CNN) architectures on the EuroSAT RGB satellite imagery dataset.
-2. **Deforestation Detection**: Applying the best-performing trained classifier to real-world, temporal Sentinel-2 satellite imagery using sliding-window inference, generating land-cover maps, and performing change detection (Forest → Non-Forest transitions) to visualize forest canopy loss.
-
----
-
-# Current Project Status
+## Current Project Status
 Below is the status of the framework milestones:
 
 * [x] Repository Setup & Environment
@@ -64,71 +39,38 @@ Below is the status of the framework milestones:
 * [x] Deforestation Detection Mapping
 * [x] Validation Pipeline & Analysis Reports
 * [x] Explainability & Model Interpretability (Grad-CAM, Saliency, Occlusion)
-* [ ] Research Paper (LaTeX template & writeup)
+* [ ] Research Paper publication
 
 ---
 
-# Repository Structure
-The directory layout of the repository:
-
+## Repository Structure
 ```text
 Deforestation-detection/
 ├── train.py                    # Config-driven training CLI
 ├── requirements.txt            # Package dependencies
 ├── pyproject.toml              # Build specifications
-├── LICENSE                     # Project license
-├── README.md                   # Main documentation
+├── README.md                   # Main landing page
 │
 ├── configs/                    # YAML configuration files
+├── docs/                       # Project documentation hub
+│   ├── PROJECT_GUIDE.md        # Companion guide
+│   ├── IMPLEMENTATION_GUIDE.md # Chronological build guide
+│   ├── TECHNICAL_REPORT.md     # Mathematical & technical report
+│   ├── RESEARCH_PAPER.md       # IEEE draft paper
+│   ├── architecture/
+│   ├── figures/
+│   └── tables/
+│
 ├── notebooks/                  # Educational Jupyter Notebooks
-│   ├── CNN_Evolution/          # CNN architecture tutorials
-│   ├── Deforestation/          # Phase 2 pipeline tutorials
-│   └── Explainability/         # Model interpretability tutorials
-│       └── 14_Explainability.ipynb
-│
-├── notes/                      # Mathematical and conceptual guides
 ├── reports/                    # Aggregated reports
-│   ├── comparison/             # Benchmarks
-│   ├── validation/             # Validation metrics & MD reports
-│   └── project_summary.md      # General project report
-│
 ├── outputs/                    # Output directory
-│   ├── experiments/            # Self-contained experiment folders
-│   ├── landcover/              # Reconstructed Sentinel-2 maps
-│   ├── change_detection/       # Temporal change maps & statistics
-│   └── explainability/         # Interpretability attribution maps
-│       ├── gradcam/
-│       ├── gradcamplusplus/
-│       ├── saliency/
-│       ├── occlusion/
-│       └── comparison/
-│
 ├── src/                        # Production library
-│   ├── data/                   # Data downloading and processing
-│   ├── models/                 # Model Zoo
-│   ├── training/               # Training engine
-│   ├── experiments/            # Experiment orchestrator
-│   ├── inference/              # Inference package
-│   ├── change_detection/       # Change detection package
-│   ├── validation/             # Validation metrics & statistics
-│   └── explainability/         # XAI interpretability package
-│       ├── gradcam.py          # Class Activation Maps
-│       ├── gradcamplusplus.py  # Generalized CAM with 2nd order grads
-│       ├── guided_backprop.py  # Guided backpropagation attributions
-│       ├── saliency.py         # Vanilla Saliency & input*gradients
-│       ├── feature_maps.py     # Intermediate activations extraction
-│       ├── activations.py      # Channel statistics & dead filter diagnostic
-│       ├── occlusion.py        # Sliding-window sensitivity masking
-│       ├── lime.py             # Perturb-and-predict superpixel modeling
-│       ├── utils.py            # Layer selectors & image preprocessing
-│       └── visualization.py    # Side-by-side dashboard plotting
-│
 └── tests/                      # Automated unit test suite
 ```
 
 ---
 
-# Complete Workflow Diagram
+## Complete Workflow Diagram
 The end-to-end operational flow of the framework:
 
 ```text
@@ -159,108 +101,31 @@ Model Interpretability (XAI Attribution Dashboards)
 
 ---
 
-# CNN Evolution
-Below is the historical timeline of the CNN architectures implemented in this registry:
+## Quick Start Guide
 
-| Model | Paper | Year | Status |
-| :--- | :--- | :---: | :--- |
-| **LeNet-5** | *Gradient-Based Learning Applied to Document Recognition* | 1898 | Completed |
-| **AlexNet** | *ImageNet Classification with Deep Convolutional Networks* | 2012 | Completed |
-| **VGG16** | *Very Deep Convolutional Networks for Large-Scale Image Recognition* | 2014 | Completed |
-| **GoogLeNet** | *Going Deeper with Convolutions* | 2014 | Completed |
-| **ResNet18 / ResNet50** | *Deep Residual Learning for Image Recognition* | 2015 | Completed |
-| **EfficientNet-B0** | *EfficientNet: Rethinking Model Scaling for CNNs* | 2019 | Completed |
+### 1. Installation
+```bash
+# Clone the repository
+git clone https://github.com/Nishchalam/Deforestation-Detection.git
+cd Deforestation-Detection
 
----
+# Setup environment
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-# Benchmark Results
-The compiled comparison results of the architectures trained on EuroSAT:
+### 2. Dataset Download
+```bash
+python src/data/download.py
+```
 
-| Model | Parameters | Training Accuracy (Val) | Best F1-Score | Status |
-| :--- | :---: | :---: | :---: | :---: |
-| **LeNet-5** | ~60k | 71.2% | 0.70 | Verified |
-| **AlexNet** | ~58M | 84.5% | 0.83 | Verified |
-| **VGG16** | ~134M | 91.3% | 0.90 | Verified |
-| **GoogLeNet** | ~6.6M | 93.8% | 0.93 | Verified |
-| **ResNet18** | ~11.7M | 95.4% | 0.95 | Verified |
-| **ResNet50** | ~23.5M | 96.1% | 0.96 | Verified |
-| **EfficientNet-B0** | ~4.0M | 96.8% | 0.97 | Verified |
-
----
-
-# Sentinel-2 Pipeline
-* **PatchGenerator**: Slices raw big imagery into overlapping 64x64 grids using customizable stride indices.
-* **Stitching**: Reconstructs complete images, resolving patch overlap grids using pixel average formulas.
-
----
-
-# Deforestation Detection Pipeline
-Detects transitions where a grid is classified as `Forest` at $T_1$ and switches to any other non-forest class at $T_2$.
-Outputs:
-* **Binary mask**: Black (stable/no-change) vs White (deforested).
-* **Overlay**: Translucent red bounding boxes drawn on the Year B original frame.
-
----
-
-# Validation Pipeline
-Evaluates predictions against ground truth maps.
-* **Supported Metrics**: Accuracy, Precision, Recall, Specificity, Dice Coefficient, IoU, False Positive/Negative Rates, Balanced Accuracy.
-* **Visual plots**: Multiclass Confusion Matrix heatmaps, class transition matrices, and confidence histogram distributions.
-
----
-
-# Explainable AI & Interpretability
-The framework includes multiple Explainable AI (XAI) attribution methods:
-* **Grad-CAM & Grad-CAM++**: Highlights region attributions by computing gradients of target classes flowing into the last convolutional layers.
-* **Vanilla Saliency & Input*Gradient**: Pixel-level sensitivity attributions mapping gradients directly to input spaces.
-* **Occlusion Sensitivity**: Measures model confidence drops by masking sliding-window blocks.
-* **LIME Simulation**: Local surrogate regression mapping block perturbations to confidence drop attributions.
-
----
-
-# Repository Screenshots (Placeholders)
-*Placeholders for user-interface or command dashboard visualizations:*
-* `reports/validation/confusion_matrix.png`
-* `reports/validation/confidence_histogram.png`
-* `outputs/explainability/comparison/dashboard.png`
-
----
-
-# Generated Reports
-Validation summaries are written to:
-* `reports/validation/metrics.json`
-* `reports/validation/statistics.json`
-* `reports/validation/summary.csv`
-* `reports/validation/transition_matrix.csv`
-* `reports/validation/validation_report.md`
-* `reports/project_summary.md`
-
----
-
-# Example Outputs & Figures
-*Placeholders for spatial overlays and difference heatmaps generated on temporal frames:*
-* `outputs/change_detection/change_map.png`
-* `outputs/change_detection/binary_mask.png`
-* `outputs/change_detection/overlay.png`
-
----
-
-# How to Train
+### 3. Model Training
 ```bash
 python train.py --config configs/resnet18.yaml
 ```
 
-# How to Evaluate
-```bash
-python evaluate.py --checkpoint outputs/experiments/ResNet18_001/best_model.pth --config configs/resnet18.yaml
-```
-
-# How to Run Inference
-```bash
-python infer.py --image data/raw/Sentinel2_sample.tif --checkpoint outputs/experiments/ResNet18_001/best_model.pth --config configs/resnet18.yaml
-```
-
-# How to Detect Deforestation
+### 4. Running Deforestation Change Detection
 ```bash
 # Executable locally to compute transition matrices and mask forest loss
 python -c "
@@ -287,54 +152,6 @@ matrix = detector.compute_transition_matrix(changes)
 export_reports(stats, matrix, detector.classes, Path('outputs/change_detection/'))
 "
 ```
-
-# How to Generate Explanations
-```bash
-# Executable locally to compute Grad-CAM heatmaps
-python -c "
-from src.models import create_model
-from src.explainability import GradCAM, preprocess_image, find_last_conv_layer
-from PIL import Image
-import torch
-import cv2
-
-# Setup model and image
-model = create_model('resnet18')
-img = Image.open('data/raw/EuroSAT_RGB/Forest/Forest_1.jpg')
-tensor = preprocess_image(img, torch.device('cpu'))
-
-# Generate Grad-CAM heatmap
-target_layer = find_last_conv_layer(model)
-cam_gen = GradCAM(model, target_layer)
-heatmap = cam_gen.generate_heatmap(tensor, class_idx=1)
-overlay = cam_gen.overlay_heatmap(cv2.imread('data/raw/EuroSAT_RGB/Forest/Forest_1.jpg'), heatmap)
-
-cv2.imwrite('outputs/explainability/gradcam/sample.jpg', overlay)
-"
-```
-
----
-
-# Results Summary
-The ResNet/EfficientNet visual backbones achieve >95% validation accuracies, showing high sensitivity for distinguishing dense canopy segments from roads, pastures, and agricultural developments.
-
----
-
-# Future Improvements
-* Vision Transformers (ViT) implementation.
-* Pixel-level semantic segmentation (U-Net).
-* Multi-spectral band arrays parsing.
-
----
-
-# References
-1. **EuroSAT**: Helber, P., et al. "EuroSAT: A Novel Dataset and Deep Learning Benchmark for Land Use and Land Cover Classification." (2019).
-2. **LeNet**: LeCun, Y., et al. "Gradient-Based Learning Applied to Document Recognition." (1998).
-3. **AlexNet**: Krizhevsky, A., et al. "ImageNet Classification with Deep Convolutional Networks." (2012).
-4. **VGG**: Simonyan, K., & Zisserman, A. "Very Deep Convolutional Networks for Large-Scale Image Recognition." (2014).
-5. **GoogLeNet**: Szegedy, C., et al. "Going Deeper with Convolutions." (2015).
-6. **ResNet**: He, K., et al. "Deep Residual Learning for Image Recognition." (2016).
-7. **EfficientNet**: Tan, M., & Le, Q. "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks." (2019).
 
 ---
 
