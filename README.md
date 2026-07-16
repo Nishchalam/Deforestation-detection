@@ -46,10 +46,10 @@ Below is the status of the framework milestones:
 * [x] EfficientNet-B0 implementation & tutorial notebook
 * [x] Model Benchmarking & Comparison
 * [x] Automated Unit Test Suite (100% coverage on model compile/forward passes)
-* [ ] Sentinel-2 Inference Pipeline (Patch Slicing & Reconstruction)
-* [ ] Land-Cover Mapping (RGB Segmentation Output)
-* [ ] Change Detection (Temporal comparison)
-* [ ] Deforestation Detection Mapping
+* [x] Sentinel-2 Inference Pipeline (Patch Slicing & Reconstruction)
+* [x] Land-Cover Mapping (RGB Segmentation Output)
+* [x] Change Detection (Temporal comparison)
+* [x] Deforestation Detection Mapping
 * [ ] Model Explainability (Grad-CAM & Activation Maps)
 * [ ] Final Research Report & Publication
 
@@ -88,7 +88,8 @@ Deforestation-detection/
 │   │   ├── 08_ResNet50.ipynb
 │   │   └── 09_EfficientNet.ipynb
 │   └── Deforestation/          # Phase 2 pipeline tutorials
-│       └── 11_Sentinel2_Inference.ipynb
+│       ├── 11_Sentinel2_Inference.ipynb
+│       └── 12_Change_Detection.ipynb
 │
 ├── notes/                      # Mathematical and conceptual guides
 │   ├── CNN_History.md
@@ -107,13 +108,16 @@ Deforestation-detection/
 │
 ├── outputs/                    # Output directory
 │   ├── experiments/            # Self-contained experiment folders
-│   │   ├── LeNet_001/
-│   │   └── AlexNet_001/
-│   └── landcover/              # Reconstructed Sentinel-2 maps
-│       ├── original.png
-│       ├── prediction.png
+│   ├── landcover/              # Reconstructed Sentinel-2 maps
+│   └── change_detection/       # Temporal change maps & statistics
+│       ├── landcover_2015.png
+│       ├── landcover_2026.png
+│       ├── change_map.png
+│       ├── binary_mask.png
 │       ├── overlay.png
-│       └── confidence.png
+│       ├── statistics.json
+│       ├── transition_matrix.csv
+│       └── summary.txt
 │
 ├── src/                        # Production library
 │   ├── data/                   # Data downloading and processing
@@ -136,19 +140,26 @@ Deforestation-detection/
 │   │   ├── callbacks.py        # Callbacks system
 │   │   ├── losses.py           # Loss instantiator
 │   │   ├── utils.py            # Checkpointing and history saver
-│   │   └── logger.py           # telemetry logger
+│   │   └── logger.py           # Telemetry logger
 │   ├── experiments/            # Experiment orchestrator
 │   │   ├── experiment.py
 │   │   ├── registry.py
 │   │   ├── runner.py
 │   │   ├── tracker.py
 │   │   └── utils.py
-│   └── inference/              # Phase 2 inference package
-│       ├── patch_generator.py  # Sliding window patch generator
-│       ├── predictor.py        # Multi-device model predictor
-│       ├── landcover_mapper.py # Grid reconstruction mapper
-│       ├── postprocessing.py   # Spatial majority filter
-│       └── visualization.py    # Overlay and legend generators
+│   ├── inference/              # Inference package
+│   │   ├── patch_generator.py  # Sliding window patch generator
+│   │   ├── predictor.py        # Multi-device model predictor
+│   │   ├── landcover_mapper.py # Grid reconstruction mapper
+│   │   ├── postprocessing.py   # Spatial majority filter
+│   │   └── visualization.py    # Overlay and legend generators
+│   └── change_detection/       # Change detection package
+│       ├── change_detector.py  # Map comparison & transition matrices
+│       ├── deforestation.py    # Forest transition masks
+│       ├── metrics.py          # Validation scoring
+│       ├── statistics.py       # Forest area summary statistics
+│       ├── utils.py            # Transition grid helpers
+│       └── visualization.py    # Dashboard panels & difference mapping
 │
 └── utils/                      # Miscellaneous utilities
     ├── visualization.py
@@ -162,7 +173,8 @@ Deforestation-detection/
     ├── test_googlenet.py
     ├── test_resnet.py
     ├── test_efficientnet.py
-    └── test_inference.py
+    ├── test_inference.py
+    └── test_change_detection.py
 ```
 
 ---
@@ -223,7 +235,7 @@ Deforestation transition visualization
 *The visual land-cover map predictions will be saved to `outputs/landcover/`.*
 
 ### 5. Deforestation Maps
-*The final deforestation transition mask overlays will be saved to `outputs/deforestation/`.*
+*The final deforestation transition mask overlays will be saved to `outputs/change_detection/`.*
 
 ---
 
@@ -248,20 +260,37 @@ python src/evaluation/comparison.py
 ```
 This updates comparison tables under `reports/comparison/`.
 
-### 4. Sentinel-2 Inference
-Run sliding window inference:
+### 4. Running Deforestation Change Detection
+Run multi-temporal change mapping between Year A and Year B acquisitions:
 ```bash
-# Executable locally to stitch and map Sentinel-2 frames
+# Executable locally to compute transition matrices and mask forest loss
 python -c "
 from src.inference import LandCoverMapper, LandCoverPredictor
+from src.change_detection import ChangeDetector, DeforestationDetector, calculate_forest_statistics, export_reports
 from src.models import create_model
-# Load model checkpoint
+from pathlib import Path
+
+# Load model
 model = create_model('resnet18')
 predictor = LandCoverPredictor(model, 'outputs/experiments/ResNet18_001/best_model.pth')
 mapper = LandCoverMapper(predictor)
-# Map large image
-outputs = mapper.generate_map('data/raw/Sentinel2_sample.tif')
-outputs['prediction_map'].save('outputs/landcover/prediction.png')
+
+# Map Year A and Year B satellite acquisitions
+map_a = mapper.generate_map('data/raw/Sentinel2_2015.tif')
+map_b = mapper.generate_map('data/raw/Sentinel2_2026.tif')
+
+# Run change detection
+detector = ChangeDetector(confidence_threshold=0.7)
+changes = detector.detect_patch_changes(map_a, map_b)
+
+# Generate deforestation mask
+defor = DeforestationDetector()
+mask = defor.detect_deforestation(changes)
+
+# Compute and save statistics and transition matrices
+stats = calculate_forest_statistics(changes, mask)
+matrix = detector.compute_transition_matrix(changes)
+export_reports(stats, matrix, detector.classes, Path('outputs/change_detection/'))
 "
 ```
 
@@ -279,7 +308,7 @@ outputs['prediction_map'].save('outputs/landcover/prediction.png')
 # References
 1. **EuroSAT**: Helber, P., et al. "EuroSAT: A Novel Dataset and Deep Learning Benchmark for Land Use and Land Cover Classification." (2019).
 2. **LeNet**: LeCun, Y., et al. "Gradient-Based Learning Applied to Document Recognition." (1998).
-3. **AlexNet**: Krizhevsky, A., et al. "ImageNet Classification with Deep Convolutional Neural Networks." (2012).
+3. **AlexNet**: Krizhevsky, A., et al. "ImageNet Classification with Deep Convolutional Networks." (2012).
 4. **VGG**: Simonyan, K., & Zisserman, A. "Very Deep Convolutional Networks for Large-Scale Image Recognition." (2014).
 5. **GoogLeNet**: Szegedy, C., et al. "Going Deeper with Convolutions." (2015).
 6. **ResNet**: He, K., et al. "Deep Residual Learning for Image Recognition." (2016).
