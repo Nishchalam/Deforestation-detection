@@ -3,8 +3,7 @@ import numpy as np
 from src.change_detection import (
     ChangeDetector, 
     DeforestationDetector, 
-    calculate_change_metrics, 
-    calculate_forest_statistics
+    validate_deforestation
 )
 
 def test_change_detector():
@@ -57,23 +56,15 @@ def test_deforestation_detector():
     assert mask == [1, 0, 0, 0]
 
 def test_statistics_and_metrics():
-    changes = [
-        ("Forest", "AnnualCrop", True),
-        ("Forest", "Forest", False),
-        ("Residential", "Residential", False)
-    ]
-    mask = [1, 0, 0]
-    
-    stats = calculate_forest_statistics(changes, mask, patch_size_m=100.0)
-    
-    # 100m x 100m patch = 1 hectare
-    assert stats["forest_area_before_ha"] == 2.0
-    assert stats["forest_area_after_ha"] == 1.0
-    assert stats["forest_loss_ha"] == 1.0
-    assert stats["percentage_forest_loss"] == 50.0
-    
-    # Calculate metrics
+    pred_mask = [1, 0, 0]
     gt_mask = [1, 0, 0]
-    metrics = calculate_change_metrics(mask, gt_mask)
-    assert metrics["accuracy"] == 1.0
+    
+    # 100m x 100m patch = 1 hectare (10,000 sq m)
+    metrics = validate_deforestation(pred_mask, gt_mask, patch_size_m=100.0)
+    
+    assert metrics["forest_area_lost_pred_ha"] == 1.0
+    assert metrics["forest_area_lost_gt_ha"] == 1.0
     assert metrics["iou"] == 1.0
+    assert metrics["precision"] == 1.0
+    assert metrics["recall"] == 1.0
+    assert metrics["change_matrix"]["true_positives_patches"] == 1

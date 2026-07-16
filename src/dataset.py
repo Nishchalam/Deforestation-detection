@@ -1,13 +1,33 @@
 from pathlib import Path
-from torch.utils.data import DataLoader
+import pandas as pd
+from PIL import Image
+import torch
+from torch.utils.data import Dataset, DataLoader
+from src.preprocessing import train_transform, test_transform
 
-from src.data.dataset import EuroSATDataset
-from src.data.transforms import (
-    train_transform,
-    test_transform
-)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+class EuroSATDataset(Dataset):
+    def __init__(self, csv_file, root_dir, transform=None):
+        self.data = pd.read_csv(csv_file)
+        self.root_dir = Path(root_dir)
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        row = self.data.iloc[idx]
+        image = Image.open(self.root_dir / row["image_path"]).convert("RGB")
+        label = row["label"]
+        if self.transform:
+            image = self.transform(image)
+        return {
+            "image": image,
+            "label": label,
+            "class_name": row["class_name"],
+            "image_path": row["image_path"]
+        }
 
 def create_dataloaders(
     data_root="data/raw/EuroSAT",
@@ -16,42 +36,14 @@ def create_dataloaders(
     num_workers=4,
     pin_memory=True,
 ):
-    """
-    Creates train, validation and test dataloaders.
-
-    Parameters
-    ----------
-    data_root : str
-        Root directory containing EuroSAT images.
-
-    processed_root : str
-        Directory containing train.csv, validation.csv and test.csv.
-
-    batch_size : int
-        Batch size.
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-    num_workers : int
-        Number of workers used by DataLoader.
-
-    pin_memory : bool
-        Pin memory for faster GPU transfer.
-
-    Returns
-    -------
-    train_loader
-    val_loader
-    test_loader
-    """
-
-    
     data_root = PROJECT_ROOT / data_root
     processed_root = PROJECT_ROOT / processed_root
-    #sanity checks
+    
     assert data_root.exists(), f"Dataset directory not found: {data_root}"
     assert processed_root.exists(), f"Processed directory not found: {processed_root}"
-    assert (processed_root / "train.csv").exists()
-    assert (processed_root / "validation.csv").exists()
-    assert (processed_root / "test.csv").exists()
+    assert (processed_root / "train.csv").exists(), f"train.csv not found under {processed_root}"
+    assert (processed_root / "validation.csv").exists(), f"validation.csv not found under {processed_root}"
+    assert (processed_root / "test.csv").exists(), f"test.csv not found under {processed_root}"
 
     train_dataset = EuroSATDataset(
         csv_file=processed_root / "train.csv",

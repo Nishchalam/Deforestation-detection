@@ -2,7 +2,7 @@ import pytest
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from src.training.trainer import Trainer
+from src.training import Trainer
 
 class SimpleModel(nn.Module):
     def __init__(self):

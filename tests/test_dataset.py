@@ -1,6 +1,6 @@
 import pytest
 import torch
-from src.data.dataset import EuroSATDataset
+from src.dataset import EuroSATDataset
 
 @pytest.fixture
 def mock_csv(tmp_path):
