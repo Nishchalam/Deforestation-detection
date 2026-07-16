@@ -33,7 +33,7 @@ def create_dataloaders(
     data_root="data/raw/EuroSAT",
     processed_root="data/processed",
     batch_size=32,
-    num_workers=4,
+    num_workers=0,
     pin_memory=True,
 ):
     data_root = PROJECT_ROOT / data_root

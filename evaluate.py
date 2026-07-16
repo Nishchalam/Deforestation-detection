@@ -9,10 +9,11 @@ def main():
     parser.add_argument("--model", type=str, default="resnet18", help="Model name")
     parser.add_argument("--checkpoint", type=str, required=True, help="Path to model weights checkpoint (.pth)")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
+    parser.add_argument("--num_workers", type=int, default=0, help="Number of dataloader workers")
     args = parser.parse_args()
 
     # Load test dataloader
-    _, _, test_loader = create_dataloaders(batch_size=args.batch_size)
+    _, _, test_loader = create_dataloaders(batch_size=args.batch_size, num_workers=args.num_workers)
     
     # Create model and load checkpoint
     model = create_model(args.model, num_classes=10)

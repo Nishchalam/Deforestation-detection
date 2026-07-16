@@ -11,11 +11,12 @@ def main():
     parser.add_argument("--epochs", type=int, default=20, help="Number of training epochs")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
+    parser.add_argument("--num_workers", type=int, default=0, help="Number of dataloader workers")
     parser.add_argument("--save_path", type=str, default="best_model.pth", help="Path to save best model checkpoint")
     args = parser.parse_args()
 
     # Create loaders
-    train_loader, val_loader, _ = create_dataloaders(batch_size=args.batch_size)
+    train_loader, val_loader, _ = create_dataloaders(batch_size=args.batch_size, num_workers=args.num_workers)
     
     # Create model
     print(f"Creating model: {args.model}")
