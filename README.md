@@ -14,18 +14,20 @@ An end-to-end deep learning framework and educational resource for land-cover cl
 7. [Sentinel-2 Pipeline](#sentinel-2-pipeline)
 8. [Deforestation Detection Pipeline](#deforestation-detection-pipeline)
 9. [Validation Pipeline](#validation-pipeline)
-10. [Repository Screenshots (Placeholders)](#repository-screenshots-placeholders)
-11. [Generated Reports](#generated-reports)
-12. [Example Outputs & Figures](#example-outputs--figures)
-13. [How to Train](#how-to-train)
-14. [How to Evaluate](#how-to-evaluate)
-15. [How to Run Inference](#how-to-run-inference)
-16. [How to Detect Deforestation](#how-to-detect-deforestation)
-17. [Results Summary](#results-summary)
-18. [Future Improvements](#future-improvements)
-19. [References](#references)
-20. [Citation](#citation)
-21. [License](#license)
+10. [Explainable AI & interpretability](#explainable-ai--interpretability)
+11. [Repository Screenshots (Placeholders)](#repository-screenshots-placeholders)
+12. [Generated Reports](#generated-reports)
+13. [Example Outputs & Figures](#example-outputs--figures)
+14. [How to Train](#how-to-train)
+15. [How to Evaluate](#how-to-evaluate)
+16. [How to Run Inference](#how-to-run-inference)
+17. [How to Detect Deforestation](#how-to-detect-deforestation)
+18. [How to Generate Explanations](#how-to-generate-explanations)
+19. [Results Summary](#results-summary)
+20. [Future Improvements](#future-improvements)
+21. [References](#references)
+22. [Citation](#citation)
+23. [License](#license)
 
 ---
 
@@ -61,7 +63,7 @@ Below is the status of the framework milestones:
 * [x] Change Detection (Temporal comparison)
 * [x] Deforestation Detection Mapping
 * [x] Validation Pipeline & Analysis Reports
-* [ ] Explainability (Grad-CAM & Activation Maps)
+* [x] Explainability & Model Interpretability (Grad-CAM, Saliency, Occlusion)
 * [ ] Research Paper (LaTeX template & writeup)
 
 ---
@@ -78,30 +80,11 @@ Deforestation-detection/
 ├── README.md                   # Main documentation
 │
 ├── configs/                    # YAML configuration files
-│   ├── base.yaml               # Defaults baseline configuration
-│   ├── lenet.yaml
-│   ├── alexnet.yaml
-│   ├── vgg16.yaml
-│   ├── googlenet.yaml
-│   ├── resnet18.yaml
-│   ├── resnet50.yaml
-│   └── efficientnet_b0.yaml
-│
 ├── notebooks/                  # Educational Jupyter Notebooks
-│   ├── 01_EDA.ipynb            # Exploratory Data Analysis
-│   ├── 02_Preprocessing.ipynb  # Transform and augmentation pipeline
 │   ├── CNN_Evolution/          # CNN architecture tutorials
-│   │   ├── 03_LeNet.ipynb
-│   │   ├── 04_AlexNet.ipynb
-│   │   ├── 05_VGG16.ipynb
-│   │   ├── 06_GoogLeNet.ipynb
-│   │   ├── 07_ResNet18.ipynb
-│   │   ├── 08_ResNet50.ipynb
-│   │   └── 09_EfficientNet.ipynb
-│   └── Deforestation/          # Phase 2 pipeline tutorials
-│       ├── 11_Sentinel2_Inference.ipynb
-│       ├── 12_Change_Detection.ipynb
-│       └── 13_Validation_and_Analysis.ipynb
+│   ├── Deforestation/          # Phase 2 pipeline tutorials
+│   └── Explainability/         # Model interpretability tutorials
+│       └── 14_Explainability.ipynb
 │
 ├── notes/                      # Mathematical and conceptual guides
 ├── reports/                    # Aggregated reports
@@ -112,7 +95,13 @@ Deforestation-detection/
 ├── outputs/                    # Output directory
 │   ├── experiments/            # Self-contained experiment folders
 │   ├── landcover/              # Reconstructed Sentinel-2 maps
-│   └── change_detection/       # Temporal change maps & statistics
+│   ├── change_detection/       # Temporal change maps & statistics
+│   └── explainability/         # Interpretability attribution maps
+│       ├── gradcam/
+│       ├── gradcamplusplus/
+│       ├── saliency/
+│       ├── occlusion/
+│       └── comparison/
 │
 ├── src/                        # Production library
 │   ├── data/                   # Data downloading and processing
@@ -121,7 +110,18 @@ Deforestation-detection/
 │   ├── experiments/            # Experiment orchestrator
 │   ├── inference/              # Inference package
 │   ├── change_detection/       # Change detection package
-│   └── validation/             # Validation metrics & statistics
+│   ├── validation/             # Validation metrics & statistics
+│   └── explainability/         # XAI interpretability package
+│       ├── gradcam.py          # Class Activation Maps
+│       ├── gradcamplusplus.py  # Generalized CAM with 2nd order grads
+│       ├── guided_backprop.py  # Guided backpropagation attributions
+│       ├── saliency.py         # Vanilla Saliency & input*gradients
+│       ├── feature_maps.py     # Intermediate activations extraction
+│       ├── activations.py      # Channel statistics & dead filter diagnostic
+│       ├── occlusion.py        # Sliding-window sensitivity masking
+│       ├── lime.py             # Perturb-and-predict superpixel modeling
+│       ├── utils.py            # Layer selectors & image preprocessing
+│       └── visualization.py    # Side-by-side dashboard plotting
 │
 └── tests/                      # Automated unit test suite
 ```
@@ -153,6 +153,8 @@ Temporal Change Detection comparison
 Deforestation transition visualization
       ↓
 Validation Metrics & Plot Dashboards
+      ↓
+Model Interpretability (XAI Attribution Dashboards)
 ```
 
 ---
@@ -207,10 +209,20 @@ Evaluates predictions against ground truth maps.
 
 ---
 
+# Explainable AI & Interpretability
+The framework includes multiple Explainable AI (XAI) attribution methods:
+* **Grad-CAM & Grad-CAM++**: Highlights region attributions by computing gradients of target classes flowing into the last convolutional layers.
+* **Vanilla Saliency & Input*Gradient**: Pixel-level sensitivity attributions mapping gradients directly to input spaces.
+* **Occlusion Sensitivity**: Measures model confidence drops by masking sliding-window blocks.
+* **LIME Simulation**: Local surrogate regression mapping block perturbations to confidence drop attributions.
+
+---
+
 # Repository Screenshots (Placeholders)
 *Placeholders for user-interface or command dashboard visualizations:*
 * `reports/validation/confusion_matrix.png`
 * `reports/validation/confidence_histogram.png`
+* `outputs/explainability/comparison/dashboard.png`
 
 ---
 
@@ -273,6 +285,31 @@ mask = defor.detect_deforestation(changes)
 stats = calculate_forest_statistics(changes, mask)
 matrix = detector.compute_transition_matrix(changes)
 export_reports(stats, matrix, detector.classes, Path('outputs/change_detection/'))
+"
+```
+
+# How to Generate Explanations
+```bash
+# Executable locally to compute Grad-CAM heatmaps
+python -c "
+from src.models import create_model
+from src.explainability import GradCAM, preprocess_image, find_last_conv_layer
+from PIL import Image
+import torch
+import cv2
+
+# Setup model and image
+model = create_model('resnet18')
+img = Image.open('data/raw/EuroSAT_RGB/Forest/Forest_1.jpg')
+tensor = preprocess_image(img, torch.device('cpu'))
+
+# Generate Grad-CAM heatmap
+target_layer = find_last_conv_layer(model)
+cam_gen = GradCAM(model, target_layer)
+heatmap = cam_gen.generate_heatmap(tensor, class_idx=1)
+overlay = cam_gen.overlay_heatmap(cv2.imread('data/raw/EuroSAT_RGB/Forest/Forest_1.jpg'), heatmap)
+
+cv2.imwrite('outputs/explainability/gradcam/sample.jpg', overlay)
 "
 ```
 
