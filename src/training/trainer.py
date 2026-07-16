@@ -60,7 +60,14 @@ class Trainer:
 
         progress_bar = tqdm(self.train_loader, desc=f"Train Epoch {epoch+1}", leave=False, dynamic_ncols=True)
 
+        import os
+        limit_batches = os.environ.get("LIMIT_BATCHES")
+        if limit_batches:
+            limit_batches = int(limit_batches)
+
         for batch_idx, batch in enumerate(progress_bar):
+            if limit_batches and batch_idx >= limit_batches:
+                break
             self._trigger_callbacks("on_batch_begin", batch_idx)
 
             images = batch["image"].to(self.device)
@@ -92,8 +99,15 @@ class Trainer:
 
         progress_bar = tqdm(self.val_loader, desc="Validation", leave=False, dynamic_ncols=True)
 
+        import os
+        limit_batches = os.environ.get("LIMIT_BATCHES")
+        if limit_batches:
+            limit_batches = int(limit_batches)
+
         with torch.no_grad():
-            for batch in progress_bar:
+            for batch_idx, batch in enumerate(progress_bar):
+                if limit_batches and batch_idx >= limit_batches:
+                    break
                 images = batch["image"].to(self.device)
                 labels = batch["label"].to(self.device)
 
