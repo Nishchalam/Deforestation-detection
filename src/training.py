@@ -27,7 +27,7 @@ class Trainer:
         criterion: Optional[torch.nn.Module] = None,
         scheduler_type: str = "plateau",
         epochs: int = 20,
-        early_stopping_patience: int = 8,
+        early_stopping_patience: int = 3,
         early_stopping_min_delta: float = 0.0,
         device: Optional[torch.device] = None,
         checkpoint_dir: str = "outputs/checkpoints",
