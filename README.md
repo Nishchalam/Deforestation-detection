@@ -110,13 +110,38 @@ pip install -r requirements.txt
 
 ---
 
-## 🏋️ Training
+## 🏋️ Training & Pipeline Features
 
-Train any custom model architecture from scratch using the CLI interface:
+The training pipeline in this repository is built to be robust, highly reproducible, and optimized for long running experiments on multiple CNN architectures.
+
+### 🚀 Key Features
+
+* **Early Stopping**: Monitored validation loss tracks improvements. Stops training automatically when validation loss plateaus (default patience = 8 epochs) to prevent overfitting and save resources.
+* **Checkpoint & Resume Support**: Saves `best_model.pth` and `last_model.pth` checkpoints automatically after every epoch. Resume interrupted runs exactly where they left off:
+  ```bash
+  python train.py --model resnet18 --resume outputs/checkpoints/resnet18/last_model.pth
+  ```
+* **Configurable LR Schedulers**: Supports `ReduceLROnPlateau` (default, reduces learning rate on plateaus), `StepLR` (decay every $N$ epochs), and `CosineAnnealingLR` (cosine decay schedule).
+* **TensorBoard Logging**: Real-time logging of scalars (Train/Val Loss, Train/Val Accuracy, Learning Rate), parameter weight/bias distributions, gradient distributions, final epoch confusion matrices, and validation prediction grids.
+* **Consolidated Output Reports**: Auto-updates a `history.json` file inside the checkpoint directory at the end of every epoch. Generates a readable markdown `training_summary.md` on completion.
+
+### 📁 Output Directory Layout
+
+All training outputs are organized under:
+* **Checkpoints, History & Reports**: `outputs/checkpoints/{model_name}/`
+* **TensorBoard Logs**: `outputs/logs/{model_name}/`
+
+### 💻 Example Commands
 
 ```bash
-# Example: Train ResNet-18 for 20 epochs
-python train.py --model resnet18 --epochs 20 --lr 0.001 --batch_size 32 --save_path best_resnet18.pth
+# Train a model from scratch with Plateau learning rate scheduler
+python train.py --model resnet18 --epochs 20 --lr 0.001 --scheduler plateau
+
+# Resume an interrupted training session
+python train.py --model resnet18 --resume outputs/checkpoints/resnet18/last_model.pth
+
+# Launch TensorBoard to monitor training live
+tensorboard --logdir outputs/logs
 ```
 
 ---
