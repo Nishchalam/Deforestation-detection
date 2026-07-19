@@ -28,20 +28,45 @@ The project maps deforestation using a sequential step-by-step workflow:
 - **What it does**: Trains six different deep learning architectures (including lightweight LeNet-5, GoogLeNet, ResNet-18, and EfficientNet-B0) on EuroSAT patches.
 - **Why it matters**: We compare the architectures on test accuracy, parameter size, and speed to select the best model. **ResNet-18** was chosen because it achieved **96.0% accuracy** while remaining lightweight enough (~43MB) to run rapidly on standard CPUs.
 
-### Step 3: Land-Cover Classification (`Sentinel2_Inference.ipynb`)
+### Step 3: Land-Cover Classification (`10_Sentinel2_Inference.ipynb`)
 - **What it does**: Divides a large Sentinel-2 image into a grid of small 64x64 pixel patches (each patch represents 640m x 640m on the ground), runs each patch through the ResNet-18 classifier, and stitches the predicted classes back into a colored map.
 - **Why it matters**: Neural networks cannot process a giant satellite image all at once. The **sliding-window grid** technique allows us to classify regional scenes piece-by-piece.
 
-### Step 4: Temporal Change Detection (`Deforestation_Detection.ipynb`)
+#### Region 1 (Ji-Paraná) Output Figures:
+![Ji-Paraná RGB Input](notebooks/reports/figures/sentinel2_ji_parana_rgb.png)
+*Figure 1: Sentinel-2 dry-season composite for Region 1 (Ji-Paraná).*
+
+![Ji-Paraná Land Cover Reconstruction Map](notebooks/reports/figures/ji_parana_reconstruction_panel.png)
+*Figure 2: Reconstructed land-cover classification and model prediction confidence maps.*
+
+### Step 4: Temporal Change Detection (`11_Deforestation_Detection.ipynb`)
 - **What it does**: Compares the land-cover map of Year A (2018) with Year B (2022) patch-by-patch. It builds a **Transition Matrix** showing class shifts and filters specifically for **Forest -> Non-Forest** changes.
 - **Why it matters**: Simply checking if pixels change color is unreliable because of lighting or soil differences. Post-classification change detection translates raw pixels into physical classes first, then isolates clearing events.
 
-### Step 5: Spatial Validation (`Validation.ipynb`)
+#### Region 2 (Porto Velho Frontier) Output Figures:
+![Porto Velho Temporal Composites](notebooks/reports/figures/porto_velho_temporal_comparison.png)
+*Figure 3: Dry-season temporal Sentinel-2 composites for Region 2 (Porto Velho Frontier).*
+
+![Porto Velho Deforestation Overlay](notebooks/reports/figures/porto_velho_deforestation_overlay.png)
+*Figure 4: Red bounding box overlays showing detected forest clearing patches.*
+
+### Step 5: Spatial Validation (`12_Validation.ipynb`)
 - **What it does**: Aligns and downsamples the high-resolution **Hansen Global Forest Change** validation mask to match our patch grid. It computes standard performance scores (Precision, Recall, F1, IoU) and outputs a **Spatial Error Map**.
 - **Why it matters**: Validation tells us how close our predictions are to established references. Hansen maps forest loss at 30m resolution; downsampling it (using a "10% loss threshold" rule) ensures an honest, apples-to-apples comparison with our 640m grid.
 
-### Step 6: End-to-End Showcase (`Project_Demo.ipynb`)
+#### Region 2 Validation Output Figures:
+![Porto Velho Spatial Error Map](notebooks/reports/figures/porto_velho_spatial_error_map.png)
+*Figure 5: Spatial error map comparing model predictions with Hansen Global Forest Change reference data (Green=True Positive, Red=False Positive, Blue=False Negative).*
+
+![Porto Velho Confusion Matrix Heatmap](notebooks/reports/figures/confusion_matrix.png)
+*Figure 6: Confusion matrix heatmap representing predicted vs. reference forest clearing patches.*
+
+### Step 6: End-to-End Showcase (`13_Project_Demo.ipynb`)
 - **What it does**: Consolidates the complete workflow—loading images, running classification, detecting change, computing statistics, and displaying metrics—in a single execution page.
+
+#### Region 3 (Ariquemes Corridor) Showcase Output Figures:
+![Ariquemes Corridor Showcase Visual Panel](notebooks/reports/figures/ariquemes_showcase_panel.png)
+*Figure 7: Final showcase visual panel displaying raw composites, reconstructed classifications, and the deforestation overlay for Region 3 (Ariquemes Corridor).*
 
 ---
 
@@ -58,9 +83,3 @@ When running the notebooks or `run_demo.py`, the pipeline generates several maps
    - **Black (True Negatives)**: Correctly predicted stable land cover.
 
 ---
-
-## ⚠️ Pipeline Limitations
-While the pipeline is highly efficient, users should note its technical limitations:
-- **Blocky Boundaries (Grid Artifacts)**: Because each 64x64 patch is classified in isolation, the resulting maps can have blocky edges. Stride overlap and voting smooths these out.
-- **Sub-patch Clearings**: Since our grid cell is 640m, small-scale selective logging or narrow roads (under 10% of the patch area) can be missed by the model.
-- **Seasonal Shifts**: Dry vs. wet season moisture changes can cause healthy grasslands to resemble bare soil, triggering false positives. Using median composites over narrow dry-season windows minimizes this issue.

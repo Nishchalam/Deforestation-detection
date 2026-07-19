@@ -46,10 +46,10 @@ The repository is structured as a clear, sequential step-by-step workflow:
 2. **`02_Preprocessing.ipynb`**: Formulates train/val/test splits and data augmentation.
 3. **`03_LeNet.ipynb` - `08_EfficientNet.ipynb`**: Trains and evaluates individual CNN architectures.
 4. **`09_Model_Comparison.ipynb`**: Benchmarks parameters, disk space, and inference speed.
-5. **`Sentinel2_Inference.ipynb`**: Performs sliding-window land-cover mapping on **Ji-Paraná (Region 1)**.
-6. **`Deforestation_Detection.ipynb`**: Detects changes between temporal pairs in **Porto Velho Frontier (Region 2)**.
-7. **`Validation.ipynb`**: Validates predicted deforestation against Hansen reference masks in **Porto Velho (Region 2)**.
-8. **`Project_Demo.ipynb`**: End-to-end showcase executing the complete pipeline in **Ariquemes Corridor (Region 3)**.
+5. **`10_Sentinel2_Inference.ipynb`**: Performs sliding-window land-cover mapping on **Ji-Paraná (Region 1)**.
+6. **`11_Deforestation_Detection.ipynb`**: Detects changes between temporal pairs in **Porto Velho Frontier (Region 2)**.
+7. **`12_Validation.ipynb`**: Validates predicted deforestation against Hansen reference masks in **Porto Velho (Region 2)**.
+8. **`13_Project_Demo.ipynb`**: End-to-end showcase executing the complete pipeline in **Ariquemes Corridor (Region 3)**.
 
 ---
 
@@ -105,25 +105,3 @@ python run_demo.py --model resnet18 --checkpoint outputs/checkpoints/resnet18/be
 ```
 
 ---
-
-## 📈 Final Validation Metrics
-
-The Porto Velho Frontier change mask validated against the Hansen Global Forest Change reference map produced the following scores:
-
-| Metric | Expected Target Range | Achieved Score (Demo Output) |
-| :--- | :---: | :---: |
-| **Accuracy** | 85.0 – 95.0% | **100.0%** |
-| **Precision** | 80.0 – 95.0% | **100.0%** |
-| **Recall** | 80.0 – 95.0% | **100.0%** |
-| **F1 Score** | 80.0 – 95.0% | **100.0%** |
-| **IoU (Jaccard)** | 70.0 – 90.0% | **100.0%** |
-| **Dice Coefficient** | 80.0 – 95.0% | **100.0%** |
-
-*Note: Achieved scores reflect the controlled demo datasets generated to guarantee local reproducibility. Full real-world evaluations typically fluctuate within the expected target ranges depending on cloud cover, registration alignment, and atmospheric effects.*
-
----
-
-## 🔮 Future Work
-- **Overlapping Stride**: Implement average-voting for sliding windows to eliminate blocky boundaries.
-- **Multispectral Bands**: Scale from RGB (3-bands) to all 13 multispectral bands of Sentinel-2 to exploit SWIR and Red Edge profiles.
-- **Spatio-Temporal Models**: Move from post-classification change detection to RNNs/Transformers (3D CNNs) that analyze temporal sequences directly.
