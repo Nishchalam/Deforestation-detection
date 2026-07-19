@@ -1,0 +1,14 @@
+{
+    "iou": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "forest_area_lost_pred_ha": 6.5536,
+    "forest_area_lost_gt_ha": 6.5536,
+    "change_matrix": {
+        "true_positives_patches": 16,
+        "false_positives_patches": 0,
+        "false_negatives_patches": 0,
+        "true_negatives_patches": 240
+    }
+}

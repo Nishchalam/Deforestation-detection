@@ -89,3 +89,104 @@ def export_validation_reports(
         f.writelines(md_lines)
         
     print(f"Validation reports exported to {output_dir}")
+
+
+def generate_demo_data(data_dir: str):
+    """
+    Generates realistic multitemporal demo images (1024x1024) by stitching EuroSAT patches.
+    Saves 'sentinel2_2018.png' (Year A), 'sentinel2_2022.png' (Year B),
+    and 'hansen_validation_mask.png' to the specified data_dir.
+    """
+    from PIL import Image
+    import random
+    
+    # Ensure reproducible layout
+    random.seed(42)
+    
+    data_dir_path = Path(data_dir)
+    data_dir_path.mkdir(parents=True, exist_ok=True)
+    
+    # Define paths
+    y1_file = data_dir_path / "sentinel2_2018.png"
+    y2_file = data_dir_path / "sentinel2_2022.png"
+    mask_file = data_dir_path / "hansen_validation_mask.png"
+    
+    # If files already exist, do nothing
+    if y1_file.exists() and y2_file.exists() and mask_file.exists():
+        return
+        
+    eurosat_dir = Path("data/raw/EuroSAT")
+    if not eurosat_dir.exists():
+        eurosat_dir = Path("../data/raw/EuroSAT")
+    if not eurosat_dir.exists():
+        raise FileNotFoundError("EuroSAT raw dataset not found. Please ensure it is downloaded at data/raw/EuroSAT.")
+        
+    # Helper to gather images from a class folder
+    def get_class_images(class_name: str) -> List[Path]:
+        folder = eurosat_dir / class_name
+        return list(folder.glob("*.jpg"))
+        
+    forest_imgs = get_class_images("Forest")
+    pasture_imgs = get_class_images("Pasture")
+    river_imgs = get_class_images("River")
+    highway_imgs = get_class_images("Highway")
+    crop_imgs = get_class_images("AnnualCrop")
+    
+    if not (forest_imgs and pasture_imgs and river_imgs and highway_imgs and crop_imgs):
+        raise ValueError("Missing some EuroSAT classes in data/raw/EuroSAT.")
+        
+    # Create 1024x1024 black canvases
+    img_a = Image.new("RGB", (1024, 1024))
+    img_b = Image.new("RGB", (1024, 1024))
+    mask = Image.new("L", (1024, 1024), 0)
+    
+    grid_size = 16
+    patch_size = 64
+    
+    # Grid coordinates of deforestation
+    defor_x_range = range(2, 6) # columns 2 to 5 (inclusive)
+    defor_y_range = range(2, 6) # rows 2 to 5 (inclusive)
+    
+    for y_idx in range(grid_size):
+        for x_idx in range(grid_size):
+            box = (x_idx * patch_size, y_idx * patch_size, (x_idx + 1) * patch_size, (y_idx + 1) * patch_size)
+            
+            # Select patch class for Year A
+            if x_idx == 8:
+                class_img_path = random.choice(river_imgs)
+            elif y_idx == 8:
+                class_img_path = random.choice(highway_imgs)
+            elif y_idx < 8:
+                class_img_path = random.choice(forest_imgs)
+            else:
+                class_img_path = random.choice(crop_imgs)
+                
+            patch_a = Image.open(class_img_path).resize((patch_size, patch_size))
+            img_a.paste(patch_a, box)
+            
+            # Select patch class for Year B
+            if y_idx in defor_y_range and x_idx in defor_x_range:
+                # Deforestation: Forest becomes Pasture
+                class_img_path_b = random.choice(pasture_imgs)
+                mask_patch = Image.new("L", (patch_size, patch_size), 255)
+            else:
+                # Stable cell: same as Year A
+                class_img_path_b = class_img_path
+                mask_patch = Image.new("L", (patch_size, patch_size), 0)
+                
+            if class_img_path_b != class_img_path:
+                patch_b = Image.open(class_img_path_b).resize((patch_size, patch_size))
+            else:
+                patch_b = patch_a
+                
+            img_b.paste(patch_b, box)
+            mask.paste(mask_patch, box)
+            
+    img_a.save(y1_file)
+    img_b.save(y2_file)
+    mask.save(mask_file)
+    print(f"Generated demo multitemporal dataset in '{data_dir}':")
+    print(f"  - Year A: {y1_file}")
+    print(f"  - Year B: {y2_file}")
+    print(f"  - Hansen Loss Mask: {mask_file}")
+

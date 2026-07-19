@@ -16,13 +16,13 @@ __pycache__/
 data/raw/
 data/processed/
 data/external/
-
+deforestation.zip
 # Outputs
 outputs/
 
 # VSCode
 .vscode/
-
+test.ipynb
 # Logs
 *.log
 
