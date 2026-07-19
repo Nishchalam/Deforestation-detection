@@ -20,7 +20,6 @@ venv/
 # Datasets & Archives
 data/raw/
 data/processed/
-data/demo/
 *.zip
 *.tar.gz
 *.gz
