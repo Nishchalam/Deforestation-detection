@@ -6,6 +6,7 @@ from PIL import Image
 import torch
 import torch.nn as nn
 import json
+from pathlib import Path
 
 from src.models import create_model
 from src.inference import LandCoverPredictor, LandCoverMapper, PatchGenerator
