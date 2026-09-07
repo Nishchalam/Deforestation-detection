@@ -6,6 +6,8 @@
 
 An end-to-end deep learning and remote sensing pipeline that benchmarks convolutional neural networks (CNNs) on the **EuroSAT dataset** and deploys the best classifier to map regional land-use and detect deforestation in **Rondônia, Brazil** using multitemporal **Sentinel-2 imagery**.
 
+> 📖 **New to CV or remote sensing?** Start with [`TUTORIAL.md`](TUTORIAL.md) — a from-first-principles walkthrough of what every stage of this pipeline does, what Hansen validation is, how the "segmentation" actually works, and where the honest cracks are.
+
 ---
 
 ## 📊 Workflow Overview
