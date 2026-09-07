@@ -34,8 +34,10 @@ def create_dataloaders(
     processed_root="data/processed",
     batch_size=32,
     num_workers=0,
-    pin_memory=True,
+    pin_memory=None,
 ):
+    if pin_memory is None:
+        pin_memory = torch.cuda.is_available()
     data_root = PROJECT_ROOT / data_root
     processed_root = PROJECT_ROOT / processed_root
     

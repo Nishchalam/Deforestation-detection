@@ -33,7 +33,9 @@ class Trainer:
         checkpoint_dir: str = "outputs/checkpoints",
         tensorboard_dir: str = "outputs/logs",
         model_name: str = "model",
-        training_arguments: Optional[Dict[str, Any]] = None
+        training_arguments: Optional[Dict[str, Any]] = None,
+        use_amp: bool = False,
+        log_param_histograms: bool = True,
     ):
         self.model = model
         self.train_loader = train_loader
@@ -72,7 +74,12 @@ class Trainer:
             self.scheduler = None
 
         self.model.to(self.device)
-        
+
+        # AMP + logging config (memory-friendly options)
+        self.use_amp = bool(use_amp) and self.device.type == "cuda"
+        self.log_param_histograms = log_param_histograms
+        self.scaler = torch.amp.GradScaler("cuda", enabled=self.use_amp)
+
         # Initialize metrics tracker
         self.start_epoch = 0
         self.best_val_loss = float('inf')
@@ -169,11 +176,17 @@ class Trainer:
                 except Exception as e:
                     pass
             
-            self.optimizer.zero_grad()
-            outputs = self.model(images)
-            loss = self.criterion(outputs, labels)
-            loss.backward()
-            self.optimizer.step()
+            self.optimizer.zero_grad(set_to_none=True)
+            with torch.amp.autocast(device_type=self.device.type, enabled=self.use_amp):
+                outputs = self.model(images)
+                loss = self.criterion(outputs, labels)
+            if self.use_amp:
+                self.scaler.scale(loss).backward()
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                loss.backward()
+                self.optimizer.step()
             
             batch_size = labels.size(0)
             running_loss += loss.item() * batch_size
@@ -361,12 +374,17 @@ class Trainer:
             self.writer.add_scalar("Accuracy/Val", val_acc, epoch + 1)
             self.writer.add_scalar("LearningRate", current_lr, epoch + 1)
             
-            for name, param in self.model.named_parameters():
-                self.writer.add_histogram(f"Parameters/{name}", param, epoch + 1)
-                if param.grad is not None:
-                    self.writer.add_histogram(f"Gradients/{name}", param.grad, epoch + 1)
-            
+            if self.log_param_histograms:
+                for name, param in self.model.named_parameters():
+                    self.writer.add_histogram(f"Parameters/{name}", param, epoch + 1)
+                    if param.grad is not None:
+                        self.writer.add_histogram(f"Gradients/{name}", param.grad, epoch + 1)
+
             self.log_predictions(epoch)
+
+            # Free cached CUDA memory between epochs — helps on low-VRAM laptops
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
             
             # Early stopping check and status reporting
             print(f"\nEpoch {epoch+1}")

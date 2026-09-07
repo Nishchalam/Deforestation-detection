@@ -26,15 +26,18 @@ graph TD
 
 ## 🏆 CNN Benchmarking Results (EuroSAT)
 
-We evaluated seven CNN architectures on the EuroSAT RGB dataset. The table below highlights the models that matter most for the final story, showcasing the selection of **ResNet-18** as our deployment model:
+We evaluated six CNN architectures on the EuroSAT RGB dataset. All models were trained with the same optimizer (Adam, lr=1e-3), scheduler (ReduceLROnPlateau), and augmentations, and evaluated on the same held-out test split. ResNet-18 wins on every axis — accuracy, throughput, and (relative to accuracy) parameter footprint — and is the deployment model:
 
-| Model Architecture | Test Accuracy | Parameters | Model Size (Disk) | Key Characteristics |
-| :--- | :---: | :---: | :---: | :--- |
-| **ResNet-18** | **96.04%** | **11.2M** | **43 MB** | **Optimal balance of accuracy, speed, and size (Selected)** |
-| **EfficientNet-B0** | 94.10% | 4.0M | 16 MB | High efficiency, low footprint |
-| **GoogLeNet** | 90.10% | 6.0M | 23 MB | Multi-scale inception processing |
-| **AlexNet** | 84.10% | 57.0M | 218 MB | Historical architecture, heavy fully-connected layers |
-| **LeNet-5** | 74.20% | 0.06M | 0.25 MB | Extremely lightweight, limited capacity |
+| Model Architecture | Test Accuracy | Precision | Recall | F1 | Throughput (img/s) | Parameters | Model Size (Disk) | Notes |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **ResNet-18** | **96.04%** | **0.960** | **0.960** | **0.959** | **276.3** | **11.2M** | **~43 MB** | **Selected — best accuracy and fastest throughput** |
+| GoogLeNet | 87.00% | 0.880 | 0.869 | 0.868 | 138.9 | 5.98M | ~23 MB | Multi-scale inception, mid-tier accuracy |
+| EfficientNet-B0 | 86.63% | 0.889 | 0.869 | 0.866 | 153.2 | 4.02M | ~15 MB | Smallest competent model — best accuracy per parameter |
+| AlexNet | 83.26% | 0.840 | 0.833 | 0.828 | 189.1 | 57.0M | ~218 MB | Heavy FC layers, mediocre accuracy per parameter |
+| LeNet-5 | 76.26% | 0.771 | 0.758 | 0.755 | 247.6 | 62K | ~0.24 MB | Extremely lightweight baseline, limited capacity |
+| VGG-16 | 11.11% ⚠️ | — | — | — | 63.9 | 134.3M | ~512 MB | Failed to converge from scratch at this budget (Adam lr=1e-3, no pretraining); output collapses to a single class. See `notebooks/05_VGG16.ipynb`. |
+
+> All numbers are reproduced from the individual training notebooks (`03_LeNet.ipynb` … `08_EfficientNet.ipynb`) and aggregated in `09_Model_Comparison.ipynb`. Throughput is measured on the same machine with `batch_size=32` on the test loader.
 
 ---
 
@@ -89,19 +92,33 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Training a Model
+### 2. Dataset
+The training pipeline expects the EuroSAT RGB dataset extracted under `data/raw/EuroSAT/` and the split CSVs (`train.csv`, `validation.csv`, `test.csv`) under `data/processed/`. `notebooks/02_Preprocessing.ipynb` generates both from a fresh Kaggle download.
+
+### 3. Training a Model
 ```bash
 python train.py --model resnet18 --epochs 15 --lr 0.001 --batch_size 32
 ```
 
-### 3. Evaluating a Checkpoint
+### 4. Evaluating a Checkpoint
 ```bash
 python evaluate.py --model resnet18 --checkpoint outputs/checkpoints/resnet18/best_model.pth
 ```
 
-### 4. Running the End-to-End Deforestation Pipeline
+### 5. Running the End-to-End Deforestation Pipeline
 ```bash
 python run_demo.py --model resnet18 --checkpoint outputs/checkpoints/resnet18/best_model.pth
 ```
+
+### 6. Running on a Low-Resource Laptop (≤ 8 GB RAM / ≤ 6 GB VRAM)
+All three CLI tools accept memory-friendly flags. On a laptop with 8 GB RAM and 5 GB VRAM, the following works for ResNet-18 / EfficientNet-B0 / GoogLeNet:
+
+```bash
+python train.py    --model resnet18 --batch_size 8  --amp --device auto --no_tb_histograms
+python evaluate.py --model resnet18 --batch_size 8  --device auto --checkpoint outputs/checkpoints/resnet18/best_model.pth
+python run_demo.py --model resnet18 --batch_size 8  --device auto --checkpoint outputs/checkpoints/resnet18/best_model.pth
+```
+
+Add `--device cpu` to skip the GPU entirely. VGG-16 and AlexNet won't fit in 5 GB VRAM at any usable batch size — train them on CPU or a larger GPU.
 
 ---
