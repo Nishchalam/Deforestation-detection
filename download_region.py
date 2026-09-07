@@ -8,20 +8,23 @@ import ee
 # Define Rondônia Ariquemes/Jamari study region bounding box: [lon_min, lat_min, lon_max, lat_max]
 DEFAULT_BBOX = [-63.0, -10.5, -62.8, -10.3]
 
-def initialize_gee():
+def initialize_gee(project: str = None):
     """Initializes Google Earth Engine API, authenticating if necessary."""
+    project = project or os.environ.get("EE_PROJECT")
+    kwargs = {"project": project} if project else {}
     try:
-        ee.Initialize()
-        print("Successfully initialized Google Earth Engine.")
-    except Exception as e:
+        ee.Initialize(**kwargs)
+        print(f"Successfully initialized Google Earth Engine (project={project}).")
+    except Exception:
         print("Earth Engine initialization failed. Attempting authentication...")
         try:
             ee.Authenticate()
-            ee.Initialize()
-            print("Successfully authenticated and initialized Google Earth Engine.")
+            ee.Initialize(**kwargs)
+            print(f"Successfully authenticated and initialized Google Earth Engine (project={project}).")
         except Exception as auth_err:
             raise RuntimeError(
-                "Could not authenticate with Earth Engine. Please run 'earthengine authenticate' manually."
+                "Could not authenticate with Earth Engine. Please run 'earthengine authenticate' manually "
+                "and pass --project (or set EE_PROJECT)."
             ) from auth_err
 
 def download_gee_image(image_ee: ee.Image, region: ee.Geometry, dimensions: int, filepath: str):
@@ -94,10 +97,11 @@ def main():
                         help="Bounding box coordinates [lon_min, lat_min, lon_max, lat_max]")
     parser.add_argument("--dimensions", type=int, default=1024, help="Dimension of output PNG image")
     parser.add_argument("--output_dir", type=str, default="data/demo", help="Output directory to save images")
+    parser.add_argument("--project", type=str, default=None, help="GEE Cloud project ID (or set EE_PROJECT)")
     args = parser.parse_args()
-    
+
     # Initialize GEE
-    initialize_gee()
+    initialize_gee(project=args.project)
     
     os.makedirs(args.output_dir, exist_ok=True)
     
