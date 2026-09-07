@@ -51,6 +51,8 @@ def main():
     parser.add_argument("--output_dir", type=str, default="reports/demo_results", help="Directory to save figures/reports")
     parser.add_argument("--data_dir", type=str, default="data/demo", help="Directory containing downloaded images")
     parser.add_argument("--confidence_threshold", type=float, default=0.0, help="Confidence threshold to accept class changes")
+    parser.add_argument("--mapper_batch_size", type=int, default=8,
+                        help="Batch size for sliding-window inference. Lower this if the mapper OOMs.")
     args = parser.parse_args()
 
     # 1. Download imagery if needed
@@ -82,10 +84,10 @@ def main():
     mapper = LandCoverMapper(predictor=predictor, patch_size=args.patch_size, stride=args.stride)
     
     print(f"Mapping Year A ({args.year1})...")
-    map_a = mapper.generate_map(y1_file, batch_size=32)
+    map_a = mapper.generate_map(y1_file, batch_size=args.mapper_batch_size)
     
     print(f"Mapping Year B ({args.year2})...")
-    map_b = mapper.generate_map(y2_file, batch_size=32)
+    map_b = mapper.generate_map(y2_file, batch_size=args.mapper_batch_size)
 
     # Save output directories
     os.makedirs(args.output_dir, exist_ok=True)

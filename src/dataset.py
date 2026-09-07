@@ -3,7 +3,12 @@ import pandas as pd
 from PIL import Image
 import torch
 from torch.utils.data import Dataset, DataLoader
-from src.preprocessing import train_transform, test_transform
+from src.preprocessing import (
+    train_transform,
+    test_transform,
+    build_train_transform,
+    build_test_transform,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,10 +39,22 @@ def create_dataloaders(
     processed_root="data/processed",
     batch_size=32,
     num_workers=0,
-    pin_memory=True,
+    pin_memory=False,
+    img_size=224,
+    train_tf=None,
+    test_tf=None,
 ):
+    """Build train/val/test loaders.
+
+    ``pin_memory`` defaults to False so a small-VRAM/RAM box does not pay for a
+    feature that only helps CUDA transfer.  Pass True (with num_workers > 0)
+    when you're actually on a GPU with headroom.
+    """
     data_root = PROJECT_ROOT / data_root
     processed_root = PROJECT_ROOT / processed_root
+
+    train_tf = train_tf if train_tf is not None else build_train_transform(img_size)
+    test_tf = test_tf if test_tf is not None else build_test_transform(img_size)
     
     assert data_root.exists(), f"Dataset directory not found: {data_root}"
     assert processed_root.exists(), f"Processed directory not found: {processed_root}"
@@ -48,19 +65,19 @@ def create_dataloaders(
     train_dataset = EuroSATDataset(
         csv_file=processed_root / "train.csv",
         root_dir=data_root,
-        transform=train_transform,
+        transform=train_tf,
     )
 
     val_dataset = EuroSATDataset(
         csv_file=processed_root / "validation.csv",
         root_dir=data_root,
-        transform=test_transform,
+        transform=test_tf,
     )
 
     test_dataset = EuroSATDataset(
         csv_file=processed_root / "test.csv",
         root_dir=data_root,
-        transform=test_transform,
+        transform=test_tf,
     )
 
     train_loader = DataLoader(
