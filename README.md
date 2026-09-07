@@ -80,6 +80,66 @@ The repository is structured as a clear, sequential step-by-step workflow:
 
 ---
 
+## ✅ Prerequisites
+
+Before you touch any code, make sure you have:
+
+| Requirement | Needed for | Notes |
+| :--- | :--- | :--- |
+| **Python 3.10+** | Everything | 3.12/3.13 confirmed working |
+| **~2 GB free disk** | EuroSAT + checkpoints | EuroSAT RGB is ~90 MB zipped, ~100 MB extracted; a ResNet-18 checkpoint is ~130 MB |
+| **NVIDIA GPU + CUDA (optional)** | Faster training | Everything also runs on CPU — just slower. 5 GB VRAM is enough for every model except VGG-16 at large batch sizes (see the table below) |
+| **A Kaggle account + API token** | `train.py`, `evaluate.py` (downloading EuroSAT) | Free. See [§ Kaggle API Key](#getting-a-kaggle-api-key) below |
+| **A Google account + Google Earth Engine access + a GCP project** | `run_demo.py`, `download_region.py` (downloading Sentinel-2 / Hansen imagery) | Free for non-commercial/research use. See [§ Google Earth Engine Access](#getting-google-earth-engine-access) below |
+
+You do **not** need the Kaggle or GEE credentials just to browse the code or read the notebooks — only to actually pull data and run the pipeline yourself.
+
+### 🔑 Getting a Kaggle API Key
+
+1. Create a free account at [kaggle.com](https://www.kaggle.com) if you don't have one.
+2. Go to **Settings** → scroll to **API** → click **Create New Token**. This downloads a file called `kaggle.json` containing your username and key.
+3. Place it where the Kaggle CLI/library expects it:
+   ```bash
+   mkdir -p ~/.kaggle
+   mv ~/Downloads/kaggle.json ~/.kaggle/kaggle.json
+   chmod 600 ~/.kaggle/kaggle.json
+   ```
+4. Verify it works:
+   ```bash
+   pip install kaggle
+   kaggle datasets list -s eurosat
+   ```
+   If you see a list of datasets, you're authenticated.
+
+**Never commit `kaggle.json` to git.** This repo's `.gitignore` already blocks `kaggle/`, `kaggle.json`, and `.kaggle/`, but double-check `git status` before pushing if you keep the file somewhere else in the repo tree.
+
+### 🛰️ Getting Google Earth Engine Access
+
+Only needed for `run_demo.py` and `download_region.py` — training/evaluating on EuroSAT does not touch GEE.
+
+1. Sign up for Earth Engine access at [signup.earthengine.google.com](https://signup.earthengine.google.com/) using a Google account (approval is usually instant for non-commercial use).
+2. Create — or pick an existing — **Google Cloud project** at [console.cloud.google.com](https://console.cloud.google.com/), and note its **Project ID** (not the display name — the ID, e.g. `my-project-123456`).
+3. Install the Earth Engine Python API if it isn't already (it's in `requirements.txt`, but if you skipped it):
+   ```bash
+   pip install earthengine-api
+   ```
+4. Authenticate once from the command line:
+   ```bash
+   earthengine authenticate
+   ```
+   This opens a browser flow. Approve access, copy the verification code back into the terminal. Credentials are cached at `~/.config/earthengine/credentials` — you only need to do this once per machine.
+5. Tell the scripts which Cloud project to bill against, either via the `--project` flag or an environment variable:
+   ```bash
+   export EE_PROJECT=my-project-123456
+   python run_demo.py --model resnet18 --checkpoint outputs/checkpoints/resnet18/best_model.pth
+   # or explicitly:
+   python download_region.py --project my-project-123456
+   ```
+
+**Never commit `~/.config/earthengine/credentials`, service-account JSON keys, or your project ID hardcoded next to secrets.** The project ID alone isn't sensitive, but treat it like any other config value — pass it via `--project`/`EE_PROJECT`, don't bake it into a script you might push.
+
+---
+
 ## 🚀 Getting Started
 
 ### 1. Installation
@@ -95,7 +155,38 @@ pip install -r requirements.txt
 ```
 
 ### 2. Dataset
-The training pipeline expects the EuroSAT RGB dataset extracted under `data/raw/EuroSAT/` and the split CSVs (`train.csv`, `validation.csv`, `test.csv`) under `data/processed/`. `notebooks/02_Preprocessing.ipynb` generates both from a fresh Kaggle download.
+With your Kaggle API key in place (see Prerequisites above):
+```bash
+mkdir -p data/raw && cd data/raw
+kaggle datasets download -d nilesh789/eurosat-rgb --unzip
+mv 2750 EuroSAT
+cd ../..
+```
+This gives you `data/raw/EuroSAT/<ClassName>/*.jpg` — 27,000 images across 10 classes.
+
+Then build the stratified train/val/test split CSVs. `notebooks/02_Preprocessing.ipynb` walks through this interactively, or run the equivalent as a script:
+```bash
+python - <<'EOF'
+from pathlib import Path
+import pandas as pd
+from torchvision.datasets import ImageFolder
+from sklearn.model_selection import train_test_split
+
+ROOT = Path("data/raw/EuroSAT")
+ds = ImageFolder(ROOT)
+rows = [{"image_path": str(Path(p).relative_to(ROOT).as_posix()),
+         "label": lbl, "class_name": ds.classes[lbl]} for p, lbl in ds.samples]
+df = pd.DataFrame(rows)
+trainval, test = train_test_split(df, test_size=0.10, stratify=df["label"], random_state=42)
+train, val = train_test_split(trainval, test_size=0.1111, stratify=trainval["label"], random_state=42)
+out = Path("data/processed"); out.mkdir(parents=True, exist_ok=True)
+train.to_csv(out/"train.csv", index=False)
+val.to_csv(out/"validation.csv", index=False)
+test.to_csv(out/"test.csv", index=False)
+print(f"train {len(train)}  val {len(val)}  test {len(test)}")
+EOF
+```
+This produces `data/processed/{train,validation,test}.csv`, which `train.py` and `evaluate.py` expect.
 
 ### 3. Training a Model
 ```bash
@@ -108,7 +199,9 @@ python evaluate.py --model resnet18 --checkpoint outputs/checkpoints/resnet18/be
 ```
 
 ### 5. Running the End-to-End Deforestation Pipeline
+Requires GEE authentication (see Prerequisites above) the first time it needs to download region imagery — after that, the downloaded PNGs are cached under `--data_dir` (default `data/demo/`) and re-used.
 ```bash
+export EE_PROJECT=my-project-123456   # your GCP project ID
 python run_demo.py --model resnet18 --checkpoint outputs/checkpoints/resnet18/best_model.pth
 ```
 
