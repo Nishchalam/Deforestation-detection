@@ -1,65 +1,36 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-
-# Caches
 .pytest_cache/
-.cache/
-
-# Virtual Environment
 .venv/
-env/
-venv/
-
-# Jupyter
+*.egg-info/
 .ipynb_checkpoints/
-*/.ipynb_checkpoints/
-*.ipynb_checkpoints
 
-# Datasets & Archives
-data/raw/
-data/processed/
-*.zip
-*.tar.gz
-*.gz
-
-# Model Checkpoints
-*.pth
+# Data, imagery, weights, run outputs: never committed
+data/
+outputs/
+*.tif
+*.tiff
 *.pt
-outputs/checkpoints/
-
-# Logs & TensorBoard
-*.log
-outputs/logs/
+*.pth
+*.ckpt
+*.onnx
+*.npy
+*.npz
 runs/
-**/runs/
+*.log
 
-# Generated Outputs & Metrics
-outputs/predictions/
-outputs/figures/
-outputs/experiments/
-notebooks/reports/figures/
-notebooks/reports/metrics/
-reports/
+# Committed results (small, written by code)
+!reports/
+!reports/metrics/*.json
+!reports/metrics/*.csv
+!reports/figures/*.png
 
-# IDEs & System
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-
-# Test files
-test.ipynb
-
-# Secrets — never commit
-kaggle/
-kaggle.json
-.kaggle/
-*.token
-access_token
-credentials
+# Secrets
 .env
 .env.*
+kaggle.json
+.kaggle/
+credentials
 service-account*.json
-gee-*.json
+*.token

@@ -1,0 +1,28 @@
+# Study area and data definition. Every script reads this; the resolved copy is
+# written next to each output so every number traces back to a config.
+name: ariquemes
+
+aoi:
+  bbox: [-63.0, -10.5, -62.8, -10.3]   # lon_min, lat_min, lon_max, lat_max (EPSG:4326)
+  crs: EPSG:32720                      # UTM 20S, native Sentinel-2 projection here
+  scale: 10                            # metres; grid snapped to multiples of this
+
+years: [2018, 2022]
+
+sentinel2:
+  collection: COPERNICUS/S2_SR_HARMONIZED
+  season: ["06-01", "10-01"]           # [start, end) month-day: June-September dry season
+  bands: [B2, B3, B4, B8, B11, B12]
+  scl_mask: [0, 1, 3, 8, 9, 10]        # no-data, saturated, cloud shadow, cloud med/high, cirrus
+
+hansen:
+  asset: auto                          # newest UMD/hansen/global_forest_change_* in the catalog
+
+labels:
+  treecover_threshold: 30              # % canopy in 2000 to count as forest
+
+download:
+  tile_px: 1024                        # request tile edge; keeps each request under the 32 MB cap
+
+paths:
+  raw: data/raw/ariquemes
