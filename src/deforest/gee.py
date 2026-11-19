@@ -112,12 +112,52 @@ def _mask_scl(scl_mask: list[int]):
     return fn
 
 
+def _join_s2cloudless(col: ee.ImageCollection, prob_collection: str, region: ee.Geometry,
+                      start: str, end: str) -> ee.ImageCollection:
+    probs = s2_collection(prob_collection, region, start, end)
+    joined = ee.Join.saveFirst("s2cloudless").apply(
+        primary=col, secondary=probs,
+        condition=ee.Filter.equals(leftField="system:index", rightField="system:index"))
+    return ee.ImageCollection(joined)
+
+
+def _mask_s2cloudless(p: dict):
+    """Cloud = s2cloudless probability > threshold; shadow = dark NIR inside the cloud
+    footprint projected along the solar azimuth; then buffer. Follows the GEE community
+    tutorial (link in configs/ariquemes.yaml), minus its SCL water test (L1C has no SCL)."""
+    def fn(img: ee.Image) -> ee.Image:
+        prob = ee.Image(img.get("s2cloudless")).select("probability")
+        cloud = prob.gt(p["cloud_prob_threshold"])
+        if p.get("mask_cirrus_qa60", False):
+            cloud = cloud.Or(img.select("QA60").bitwiseAnd(1 << 11).neq(0))
+        dark = img.select("B8").lt(p["nir_dark_threshold"] * 1e4)
+        azimuth = ee.Number(90).subtract(ee.Number(img.get("MEAN_SOLAR_AZIMUTH_ANGLE")))
+        proj = (cloud.directionalDistanceTransform(azimuth, p["cloud_proj_dist_km"] * 10)
+                .reproject(crs=img.select(0).projection(), scale=100)
+                .select("distance").mask())
+        shadow = proj.multiply(dark)
+        bad = (cloud.Or(shadow).focalMin(2).focalMax(p["buffer_m"] * 2 / 20)
+               .reproject(crs=img.select(0).projection(), scale=20))
+        return img.updateMask(bad.Not())
+
+    return fn
+
+
 def s2_composite(collection: str, region: ee.Geometry, start: str, end: str,
-                 bands: list[str], scl_mask: list[int]) -> ee.Image:
-    """Per-pixel SCL-masked median of `bands` (uint16 reflectance x 1e4) plus `n_obs`,
+                 bands: list[str], cloud_mask: str = "scl", scl_mask: list[int] | None = None,
+                 s2cloudless: dict | None = None) -> ee.Image:
+    """Per-pixel cloud-masked median of `bands` (uint16 reflectance x 1e4) plus `n_obs`,
     the number of clear observations per pixel. 20 m bands are resampled bilinearly
-    to the 10 m output grid; 10 m bands sit on their native grid, so bilinear is exact."""
-    col = s2_collection(collection, region, start, end).map(_mask_scl(scl_mask))
+    to the 10 m output grid; 10 m bands sit on their native grid, so bilinear is exact.
+    cloud_mask: 'scl' (L2A Scene Classification) or 's2cloudless' (L1C + cloud probability)."""
+    col = s2_collection(collection, region, start, end)
+    if cloud_mask == "scl":
+        col = col.map(_mask_scl(list(scl_mask)))
+    elif cloud_mask == "s2cloudless":
+        col = _join_s2cloudless(col, s2cloudless["collection"], region, start, end)
+        col = col.map(_mask_s2cloudless(dict(s2cloudless)))
+    else:
+        raise ValueError(f"unknown cloud_mask {cloud_mask!r}")
     col = col.map(lambda im: im.select(bands).resample("bilinear"))
     median = col.median().round().toUint16()
     n_obs = col.select(bands[0]).count().rename("n_obs").toUint16()

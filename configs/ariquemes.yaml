@@ -10,10 +10,20 @@ aoi:
 years: [2018, 2022]
 
 sentinel2:
-  collection: COPERNICUS/S2_SR_HARMONIZED
+  # L1C top-of-atmosphere for BOTH years: GEE's L2A has only 6 dates in Jun-Sep 2018
+  # here (vs 24 for L1C), so L1C keeps processing and seasonal sampling identical.
+  collection: COPERNICUS/S2_HARMONIZED
   season: ["06-01", "10-01"]           # [start, end) month-day: June-September dry season
   bands: [B2, B3, B4, B8, B11, B12]
-  scl_mask: [0, 1, 3, 8, 9, 10]        # no-data, saturated, cloud shadow, cloud med/high, cirrus
+  cloud_mask: s2cloudless              # s2cloudless (L1C) | scl (L2A only)
+  s2cloudless:                         # https://developers.google.com/earth-engine/tutorials/community/sentinel-2-s2cloudless
+    collection: COPERNICUS/S2_CLOUD_PROBABILITY
+    cloud_prob_threshold: 50           # % probability above which a pixel is cloud
+    nir_dark_threshold: 0.15           # B8 reflectance below which a pixel can be shadow
+    cloud_proj_dist_km: 1              # max shadow projection distance from cloud
+    buffer_m: 50                       # dilation of the cloud+shadow mask
+    mask_cirrus_qa60: false            # QA60 is empty for 2022 L1C, so using it would mask the years unequally
+  scl_mask: [0, 1, 3, 8, 9, 10]        # used only when cloud_mask = scl
 
 hansen:
   asset: auto                          # newest UMD/hansen/global_forest_change_* in the catalog

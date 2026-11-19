@@ -49,7 +49,9 @@ def main() -> None:
     outputs = {}
     for year in cfg.years:
         start, end = gee.season_dates(year, s2.season)
-        img = gee.s2_composite(s2.collection, region, start, end, list(s2.bands), list(s2.scl_mask))
+        img = gee.s2_composite(s2.collection, region, start, end, list(s2.bands),
+                               cloud_mask=s2.cloud_mask, scl_mask=s2.get("scl_mask"),
+                               s2cloudless=s2.get("s2cloudless"))
         out = raw / f"s2_{year}.tif"
         print(f"Downloading {out}")
         gee.download_image(img, grid, out, list(s2.bands) + ["n_obs"], cfg.download.tile_px, nodata=0)
@@ -68,7 +70,10 @@ def main() -> None:
         "grid": {"crs": grid.crs, "x0": grid.x0, "y0": grid.y0, "scale": grid.scale,
                  "width": grid.width, "height": grid.height},
         "sentinel2": {"collection": s2.collection, "bands": list(s2.bands),
-                      "scl_mask": list(s2.scl_mask), "scenes": summaries},
+                      "cloud_mask": s2.cloud_mask,
+                      "cloud_mask_params": dict(s2.s2cloudless if s2.cloud_mask == "s2cloudless"
+                                                else {"scl_mask": s2.scl_mask}),
+                      "scenes": summaries},
         "hansen_asset": asset,
         "files": outputs,
     }
