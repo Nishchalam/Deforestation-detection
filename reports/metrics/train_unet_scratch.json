@@ -1,0 +1,25 @@
+{
+  "variant": "scratch",
+  "encoder_weights": null,
+  "best_epoch": 3,
+  "best_val_iou": 0.6920056040053434,
+  "epochs_run": 23,
+  "train_time_s": 28.1,
+  "config": {
+    "encoder": "resnet18",
+    "in_channels": 6,
+    "variants": {
+      "imagenet": "imagenet",
+      "scratch": null
+    },
+    "epochs": 80,
+    "batch_size": 16,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "patience": 20,
+    "repeats": 4,
+    "amp": true,
+    "num_workers": 4
+  },
+  "peak_gpu_mem_gb": 1.18
+}

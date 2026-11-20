@@ -1,0 +1,25 @@
+{
+  "variant": "imagenet",
+  "encoder_weights": "imagenet",
+  "best_epoch": 20,
+  "best_val_iou": 0.7025255159055352,
+  "epochs_run": 40,
+  "train_time_s": 63.8,
+  "config": {
+    "encoder": "resnet18",
+    "in_channels": 6,
+    "variants": {
+      "imagenet": "imagenet",
+      "scratch": null
+    },
+    "epochs": 80,
+    "batch_size": 16,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "patience": 20,
+    "repeats": 4,
+    "amp": true,
+    "num_workers": 4
+  },
+  "peak_gpu_mem_gb": 1.07
+}

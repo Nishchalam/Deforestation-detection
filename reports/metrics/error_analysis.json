@@ -1,0 +1,197 @@
+{
+  "method": "unet_imagenet",
+  "fp_pixels": 13470,
+  "fn_pixels": 4636,
+  "fp_categories": {
+    "canopy2000 < threshold": {
+      "pixels": 4020,
+      "share": 0.2984
+    },
+    "forest edge (<=2 px)": {
+      "pixels": 3834,
+      "share": 0.2846
+    },
+    "Hansen loss <=2018": {
+      "pixels": 3075,
+      "share": 0.2283
+    },
+    "stable forest interior": {
+      "pixels": 1857,
+      "share": 0.1379
+    },
+    "Hansen loss 2023+": {
+      "pixels": 502,
+      "share": 0.0373
+    },
+    "PRODES 2019-22 deforestation": {
+      "pixels": 182,
+      "share": 0.0135
+    }
+  },
+  "fn_categories": {
+    "model: still forest in 2022, edge": {
+      "pixels": 3302,
+      "share": 0.7123
+    },
+    "model: non-forest in 2018, edge": {
+      "pixels": 672,
+      "share": 0.145
+    },
+    "model: still forest in 2022, interior": {
+      "pixels": 550,
+      "share": 0.1186
+    },
+    "removed by MMU, edge": {
+      "pixels": 82,
+      "share": 0.0177
+    },
+    "model: non-forest in 2018, interior": {
+      "pixels": 30,
+      "share": 0.0065
+    }
+  },
+  "fp_gallery": [
+    {
+      "rank": 1,
+      "pixels": 876,
+      "row": 338,
+      "col": 1369,
+      "main_category": "forest edge (<=2 px)"
+    },
+    {
+      "rank": 2,
+      "pixels": 846,
+      "row": 99,
+      "col": 1674,
+      "main_category": "forest edge (<=2 px)"
+    },
+    {
+      "rank": 3,
+      "pixels": 614,
+      "row": 716,
+      "col": 1397,
+      "main_category": "Hansen loss <=2018"
+    },
+    {
+      "rank": 4,
+      "pixels": 490,
+      "row": 124,
+      "col": 1041,
+      "main_category": "canopy2000 < threshold"
+    },
+    {
+      "rank": 5,
+      "pixels": 450,
+      "row": 541,
+      "col": 1650,
+      "main_category": "canopy2000 < threshold"
+    },
+    {
+      "rank": 6,
+      "pixels": 424,
+      "row": 682,
+      "col": 1140,
+      "main_category": "Hansen loss <=2018"
+    },
+    {
+      "rank": 7,
+      "pixels": 409,
+      "row": 504,
+      "col": 1653,
+      "main_category": "canopy2000 < threshold"
+    },
+    {
+      "rank": 8,
+      "pixels": 398,
+      "row": 272,
+      "col": 1159,
+      "main_category": "Hansen loss 2023+"
+    },
+    {
+      "rank": 9,
+      "pixels": 382,
+      "row": 244,
+      "col": 1313,
+      "main_category": "Hansen loss <=2018"
+    },
+    {
+      "rank": 10,
+      "pixels": 333,
+      "row": 584,
+      "col": 1036,
+      "main_category": "Hansen loss <=2018"
+    }
+  ],
+  "fn_gallery": [
+    {
+      "rank": 1,
+      "pixels": 536,
+      "row": 532,
+      "col": 1683,
+      "main_category": "model: still forest in 2022, edge"
+    },
+    {
+      "rank": 2,
+      "pixels": 359,
+      "row": 221,
+      "col": 1240,
+      "main_category": "model: still forest in 2022, edge"
+    },
+    {
+      "rank": 3,
+      "pixels": 268,
+      "row": 31,
+      "col": 1569,
+      "main_category": "model: still forest in 2022, edge"
+    },
+    {
+      "rank": 4,
+      "pixels": 265,
+      "row": 668,
+      "col": 1480,
+      "main_category": "model: still forest in 2022, edge"
+    },
+    {
+      "rank": 5,
+      "pixels": 251,
+      "row": 275,
+      "col": 1563,
+      "main_category": "model: still forest in 2022, edge"
+    },
+    {
+      "rank": 6,
+      "pixels": 236,
+      "row": 697,
+      "col": 1179,
+      "main_category": "model: still forest in 2022, edge"
+    },
+    {
+      "rank": 7,
+      "pixels": 194,
+      "row": 201,
+      "col": 1689,
+      "main_category": "model: still forest in 2022, interior"
+    },
+    {
+      "rank": 8,
+      "pixels": 126,
+      "row": 18,
+      "col": 1520,
+      "main_category": "model: still forest in 2022, edge"
+    },
+    {
+      "rank": 9,
+      "pixels": 118,
+      "row": 7,
+      "col": 1583,
+      "main_category": "model: still forest in 2022, edge"
+    },
+    {
+      "rank": 10,
+      "pixels": 111,
+      "row": 69,
+      "col": 1028,
+      "main_category": "model: still forest in 2022, edge"
+    }
+  ]
+}

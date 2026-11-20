@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "years": "2019-2022",
+  "test_area_ha": 5898.24,
+  "pixel_area_ha": 0.01,
+  "hansen_ha": 116.8,
+  "ndvi_ha": 138.9,
+  "random_forest_ha": 108.52,
+  "unet_imagenet_ha": 205.14000000000001,
+  "unet_scratch_ha": 150.91,
+  "prodes_ha": 10.8
+}
