@@ -278,8 +278,8 @@ footer p { margin: 0 0 6px; }
     { key: 'hansen_loss', label: () => 'Loss (Hansen reference)', color: COLORS.hansen_loss, z: 450 },
     { key: 'forest_after', label: (r) => `Forest ${r.end} (model)`, color: COLORS.forest, z: 400 },
     { key: 'forest_before', label: (r) => `Forest ${r.start} (model)`, color: COLORS.forest, z: 390 },
-    { key: 'after_rgb', label: (r) => `Sentinel-2 image ${r.end}`, color: null, z: 300 },
-    { key: 'before_rgb', label: (r) => `Sentinel-2 image ${r.start}`, color: null, z: 290 },
+    { key: 'after_rgb', label: (r) => `Sentinel-2 image ${r.end} (several MB)`, color: null, z: 300 },
+    { key: 'before_rgb', label: (r) => `Sentinel-2 image ${r.start} (several MB)`, color: null, z: 290 },
   ];
 
   const state = { max: 500, bbox: null, ee: false, healthOk: false, running: false, jobId: null,
