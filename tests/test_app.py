@@ -41,8 +41,8 @@ def _stub_fetch(hansen_last_year=2025, gate=None, started=None, error=None):
     return fetch
 
 
-def _client(tmp_path, fetch=None, ee=(True, "proj"), **settings):
-    app = main.create_app(pipeline=_pipe(), fetch=fetch or _stub_fetch(), ee_ready=lambda: ee,
+def _client(tmp_path, fetch=None, ee=(True, "proj"), pipeline=None, **settings):
+    app = main.create_app(pipeline=pipeline or _pipe(), fetch=fetch or _stub_fetch(), ee_ready=lambda: ee,
                           cache_dir=tmp_path / "cache", settings=main.Settings(**settings))
     return TestClient(app)
 
@@ -328,3 +328,150 @@ def test_cache_eviction_is_lru(tmp_path):
     q.shutdown()
     assert sorted(p.name for p in (tmp_path / "q").iterdir()) == ["a", "c"]
     assert q.find("b") is None and q.find("a").result == {"p": "a"}
+
+
+# ------------------------------------------------------------------ /predict limits
+def test_predict_upload_too_large_by_content_length(tmp_path):
+    with _client(tmp_path, max_upload_mb=0.01) as c:  # ~10 KB; the 64x64x6 uint16 tif is ~49 KB
+        r = _upload(c, tmp_path)
+        assert r.status_code == 413 and "MB" in r.json()["detail"]
+    with _client(tmp_path) as c:
+        assert _upload(c, tmp_path).status_code == 200
+
+
+def test_predict_upload_too_large_while_streaming(tmp_path):
+    # chunked body: no Content-Length, so the limit is enforced by counting bytes as they arrive
+    def body():
+        yield b'--x\r\nContent-Disposition: form-data; name="before"; filename="b.tif"\r\n\r\n'
+        for _ in range(40):
+            yield b"0" * 1000
+    with _client(tmp_path, max_upload_mb=0.01) as c:
+        r = c.post("/predict", content=body(), headers={"Content-Type": "multipart/form-data; boundary=x"})
+        assert r.status_code == 413
+
+
+def test_predict_area_limit_on_raster_size(tmp_path):
+    # 64x64 px at 10 m = 0.41 km2
+    with _client(tmp_path, max_area_km2=0.1) as c:
+        r = _upload(c, tmp_path)
+        assert r.status_code == 400 and "km2" in r.json()["detail"]
+    with _client(tmp_path, max_area_km2=1) as c:
+        assert _upload(c, tmp_path).status_code == 200
+
+
+def test_predict_busy_returns_429(tmp_path):
+    gate, started = threading.Event(), threading.Event()
+
+    def forest(b):
+        started.set()
+        assert gate.wait(10)
+        return b[:, 0]
+    pipe = _pipe()
+    pipe.infer_forest = forest
+    result = {}
+    try:
+        with _client(tmp_path, pipeline=pipe) as c:
+            t = threading.Thread(target=lambda: result.update(r=_upload(c, tmp_path, after=False)))
+            t.start()
+            assert started.wait(10)
+            r = c.post("/predict", files={"before": ("b.tif", b"x")})
+            assert r.status_code == 429 and "busy" in r.json()["detail"]
+            gate.set()
+            t.join(10)
+            assert result["r"].status_code == 200
+            assert _upload(c, tmp_path, after=False).status_code == 200  # released afterwards
+    finally:
+        gate.set()
+
+
+# ------------------------------------------------------------------ settings, client ip, EE retry
+def test_settings_from_env(monkeypatch):
+    monkeypatch.setenv("ORT_THREADS", "3")
+    monkeypatch.setenv("MAX_UPLOAD_MB", "5")
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "2")
+    monkeypatch.setenv("MAX_QUEUE", "9")
+    st = main.Settings.from_env()
+    assert (st.ort_threads, st.max_upload_mb, st.trusted_proxy_hops, st.max_queue) == (3, 5, 2, 9)
+    monkeypatch.delenv("ORT_THREADS")
+    assert main.Settings.from_env().ort_threads == 2
+
+
+def test_ort_threads_passed_to_loader(tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_loader(model_dir, threads=None):
+        seen["threads"] = threads
+        return _pipe(), None
+    monkeypatch.setattr(main, "load_onnx_pipeline", fake_loader)
+    main.create_app(settings=main.Settings(ort_threads=3), cache_dir=tmp_path / "c")
+    assert seen["threads"] == 3
+
+
+class _Req:
+    def __init__(self, xff=None, host="9.9.9.9"):
+        self.headers = {} if xff is None else {"x-forwarded-for": xff}
+        self.client = type("C", (), {"host": host})()
+
+
+def test_client_ip_trusted_hops():
+    assert main.client_ip(_Req("6.6.6.6, 1.1.1.1")) == "1.1.1.1"  # leftmost is client-supplied
+    assert main.client_ip(_Req("6.6.6.6, 1.1.1.1, 10.0.0.1"), hops=2) == "1.1.1.1"
+    assert main.client_ip(_Req(None, host="5.5.5.5")) == "5.5.5.5"
+    assert main.client_ip(_Req("1.1.1.1"), hops=2) == "9.9.9.9"  # header shorter than the hop count
+
+
+def test_spoofed_forwarded_for_does_not_change_identity(tmp_path):
+    gate, started = threading.Event(), threading.Event()
+    other = {**PAYLOAD, "bbox": [v + 0.01 for v in ARIQUEMES]}
+    try:
+        with _client(tmp_path, fetch=_stub_fetch(gate=gate, started=started), max_queue=5) as c:
+            r = c.post("/predict-area", json=PAYLOAD, headers={"X-Forwarded-For": "6.6.6.1, 1.1.1.1"})
+            assert r.status_code == 202 and started.wait(10)
+            # same real client (last entry), different spoofed leftmost entry: still the same IP
+            r = c.post("/predict-area", json=other, headers={"X-Forwarded-For": "6.6.6.2, 1.1.1.1"})
+            assert r.status_code == 429 and "already" in r.json()["detail"]
+            # a genuinely different client is let in
+            r = c.post("/predict-area", json=other, headers={"X-Forwarded-For": "6.6.6.1, 2.2.2.2"})
+            assert r.status_code == 202
+            gate.set()
+    finally:
+        gate.set()
+
+
+def test_ee_failure_is_retried_after_the_window(tmp_path, monkeypatch):
+    from deforest import gee
+    calls, now = [], [1000.0]
+
+    def init():
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("EE down")
+        return "proj"
+    monkeypatch.setattr(gee, "initialize", init)
+    app = main.create_app(pipeline=_pipe(), fetch=_stub_fetch(), cache_dir=tmp_path / "c",
+                          settings=main.Settings(ee_retry_s=60), clock=lambda: now[0])
+    with TestClient(app) as c:
+        body = c.get("/health").json()
+        assert body["earth_engine"] is False and "EE down" in body["earth_engine_detail"]
+        now[0] += 30  # inside the window: no new attempt, the reason is kept
+        body = c.get("/health").json()
+        assert body["earth_engine"] is False and "EE down" in body["earth_engine_detail"] and len(calls) == 1
+        assert c.post("/predict-area", json=PAYLOAD).status_code == 503
+        now[0] += 31  # window over: retry succeeds
+        assert c.get("/health").json()["earth_engine"] is True and len(calls) == 2
+        r = c.post("/predict-area", json=PAYLOAD)
+        assert r.status_code == 202 and _wait(c, r.json()["job_id"])["status"] == "done"
+        c.get("/health")
+        assert len(calls) == 2  # success is cached
+
+
+def test_ee_import_failure_is_reported(monkeypatch):
+    import builtins
+    real = builtins.__import__
+
+    def fake(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "deforest" and "gee" in (fromlist or ()):
+            raise ImportError("no earthengine")
+        return real(name, globals, locals, fromlist, level)
+    monkeypatch.setattr(builtins, "__import__", fake)
+    assert main._lazy_ee()() == (False, "no earthengine")

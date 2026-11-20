@@ -14,6 +14,7 @@ import os
 import shutil
 import tempfile
 import threading
+import time
 import zipfile
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -23,7 +24,7 @@ from typing import Callable
 import numpy as np
 import rasterio
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -48,6 +49,10 @@ class Settings:
     model_dir: str = "models"
     cache_dir: str = "cache"
     model_release: str = "models-v2.0"
+    max_upload_mb: float = 200.0
+    ort_threads: int = 2
+    trusted_proxy_hops: int = 1  # proxies in front of the app; the client is this many entries from the right of X-Forwarded-For
+    ee_retry_s: float = 60.0
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -57,7 +62,11 @@ class Settings:
                    job_timeout_s=float(e("JOB_TIMEOUT_S", cls.job_timeout_s)),
                    cache_size=int(e("CACHE_SIZE", cls.cache_size)),
                    model_dir=e("MODEL_DIR", cls.model_dir), cache_dir=e("CACHE_DIR", cls.cache_dir),
-                   model_release=e("MODEL_RELEASE", cls.model_release))
+                   model_release=e("MODEL_RELEASE", cls.model_release),
+                   max_upload_mb=float(e("MAX_UPLOAD_MB", cls.max_upload_mb)),
+                   ort_threads=int(e("ORT_THREADS", cls.ort_threads)),
+                   trusted_proxy_hops=int(e("TRUSTED_PROXY_HOPS", cls.trusted_proxy_hops)),
+                   ee_retry_s=float(e("EE_RETRY_S", cls.ee_retry_s)))
 
 
 class AreaRequest(BaseModel):
@@ -73,25 +82,59 @@ def cache_key(bbox, start: int, end: int, months, sha256s: dict) -> str:
     return hashlib.sha1(blob.encode()).hexdigest()
 
 
-def client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for", "")
-    return fwd.split(",")[0].strip() or (request.client.host if request.client else "unknown")
+def client_ip(request: Request, hops: int = 1) -> str:
+    """The client behind `hops` trusted proxies: each proxy appends the address it saw to X-Forwarded-For,
+    so the real client is `hops` entries from the right (anything further left is client-supplied).
+    Falls back to the socket peer when the header is absent or shorter than `hops`."""
+    parts = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
+    if hops >= 1 and len(parts) >= hops:
+        return parts[-hops]
+    return request.client.host if request.client else "unknown"
 
 
-def _lazy_ee() -> Callable[[], tuple[bool, str]]:
-    """Earth Engine readiness: initialise once on first use and remember the outcome."""
-    lock, state = threading.Lock(), []
+def _lazy_ee(retry_s: float = 60.0, clock: Callable[[], float] = time.monotonic) -> Callable[[], tuple[bool, str]]:
+    """Earth Engine readiness: initialise on first use. Success is remembered for the process; a failure
+    is remembered for `retry_s` seconds (its reason stays available to /health) and then retried."""
+    lock, state = threading.Lock(), {"ok": None, "detail": "", "at": 0.0}
 
     def ready() -> tuple[bool, str]:
         with lock:
-            if not state:
+            if state["ok"] or (state["ok"] is False and clock() - state["at"] < retry_s):
+                return state["ok"], state["detail"]
+            try:
                 from deforest import gee
-                try:
-                    state.append((True, str(gee.initialize())))
-                except Exception as e:  # noqa: BLE001 - reported by /health and as the 503 detail
-                    state.append((False, str(e)))
-            return state[0]
+                state.update(ok=True, detail=str(gee.initialize()))
+            except Exception as e:  # noqa: BLE001 - reported by /health and as the 503 detail
+                state.update(ok=False, detail=str(e) or type(e).__name__, at=clock())
+            return state["ok"], state["detail"]
     return ready
+
+
+class UploadLimit:
+    """Reject a request body above `limit` bytes with 413: by Content-Length when sent, and by counting
+    the bytes as they arrive (chunked uploads). Starlette spools uploads to disk while parsing, so this
+    has to run before the endpoint, not inside it."""
+
+    def __init__(self, app, limit: int, path: str = "/predict"):
+        self.app, self.limit, self.path = app, limit, path
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope["path"] != self.path or scope["method"] != "POST":
+            return await self.app(scope, receive, send)
+        too_big = HTTPException(413, f"upload is larger than the {self.limit / 2**20:g} MB limit")
+        length = dict(scope["headers"]).get(b"content-length", b"0")
+        if length.isdigit() and int(length) > self.limit:
+            return await JSONResponse({"detail": too_big.detail}, 413)(scope, receive, send)
+        seen = 0
+
+        async def counted():
+            nonlocal seen
+            msg = await receive()
+            seen += len(msg.get("body", b"")) if msg["type"] == "http.request" else 0
+            if seen > self.limit:
+                raise too_big
+            return msg
+        await self.app(scope, counted, send)
 
 
 def _zip(files: dict[str, bytes]) -> Response:
@@ -109,13 +152,14 @@ def _mask_tif(mask: np.ndarray, profile: dict, description: str) -> bytes:
 
 
 def create_app(pipeline=None, fetch=area.fetch_inputs, ee_ready: Callable[[], tuple[bool, str]] | None = None,
-               cache_dir: Path | None = None, settings: Settings | None = None, card: dict | None = None) -> FastAPI:
+               cache_dir: Path | None = None, settings: Settings | None = None, card: dict | None = None,
+               clock: Callable[[], float] = time.monotonic) -> FastAPI:
     """Build the app. `pipeline` (with `card`, default app/model_card.json) is injected by tests; otherwise
     the ONNX pipeline is loaded from `settings.model_dir`."""
     settings = settings or Settings.from_env()
     if pipeline is None:
         try:
-            pipeline, card = load_onnx_pipeline(settings.model_dir, threads=os.cpu_count())
+            pipeline, card = load_onnx_pipeline(settings.model_dir, threads=settings.ort_threads)
         except (FileNotFoundError, KeyError, OSError) as e:
             raise RuntimeError(f"cannot load the model from {settings.model_dir!r}: {e}. "
                                "Run `python scripts/fetch_weights.py --dest models` first.") from e
@@ -124,7 +168,7 @@ def create_app(pipeline=None, fetch=area.fetch_inputs, ee_ready: Callable[[], tu
     cfg = load_config(CONFIG)
     threshold = cfg.labels.treecover_threshold
     own_ee = ee_ready is None
-    ee_ready = ee_ready or _lazy_ee()
+    ee_ready = ee_ready or _lazy_ee(settings.ee_retry_s, clock)
 
     def run_area_job(payload: dict, out: Path, progress: jobs.Progress) -> dict:
         bbox, start, end, months = payload["bbox"], payload["start"], payload["end"], payload["months"]
@@ -165,6 +209,8 @@ def create_app(pipeline=None, fetch=area.fetch_inputs, ee_ready: Callable[[], tu
         queue.shutdown()
 
     app = FastAPI(title="Deforestation explorer", lifespan=lifespan)
+    app.add_middleware(UploadLimit, limit=int(settings.max_upload_mb * 2**20))
+    model_busy = threading.Semaphore(1)  # one /predict model run at a time: refuse rather than queue
 
     @app.get("/health")
     def health():
@@ -177,6 +223,14 @@ def create_app(pipeline=None, fetch=area.fetch_inputs, ee_ready: Callable[[], tu
     # ------------------------------------------------------------------ upload
     @app.post("/predict")
     def predict_upload(before: UploadFile = File(...), after: UploadFile | None = File(None)):
+        if not model_busy.acquire(blocking=False):
+            raise HTTPException(429, "busy with another upload, try again shortly")
+        try:
+            return _predict_upload(before, after)
+        finally:
+            model_busy.release()
+
+    def _predict_upload(before: UploadFile, after: UploadFile | None):
         with tempfile.TemporaryDirectory() as d:
             arrays = {}
             for name, up in (("before", before), ("after", after)):
@@ -186,13 +240,18 @@ def create_app(pipeline=None, fetch=area.fetch_inputs, ee_ready: Callable[[], tu
                 with open(path, "wb") as f:
                     shutil.copyfileobj(up.file, f)
                 try:
+                    with rasterio.open(path) as src:  # size check from the header, before reading any pixels
+                        if src.crs is None or not src.crs.is_projected:
+                            raise HTTPException(400, "rasters must be in a projected CRS (metres), e.g. UTM")
+                        km2 = src.width * src.height * metrics.pixel_area_ha(src.transform) / 100
+                    if km2 > settings.max_area_km2:
+                        raise HTTPException(400, f"{name} covers {km2:.0f} km2, above the "
+                                                 f"{settings.max_area_km2:g} km2 limit")
                     arrays[name] = predict.read_composite(path)
                 except (ValueError, rasterio.errors.RasterioError) as e:
                     raise HTTPException(400, f"{name}: {e}") from e
         (b, prof), second = arrays["before"], arrays.get("after")
         crs = prof["crs"]
-        if crs is None or not crs.is_projected:
-            raise HTTPException(400, "rasters must be in a projected CRS (metres), e.g. UTM")
         if second is not None:
             a, aprof = second
             if a.shape != b.shape or aprof["transform"] != prof["transform"] or aprof["crs"] != crs:
@@ -228,7 +287,7 @@ def create_app(pipeline=None, fetch=area.fetch_inputs, ee_ready: Callable[[], tu
                 raise HTTPException(503, detail)
             payload = {"bbox": req.bbox, "start": req.start, "end": req.end, "months": req.months}
             try:
-                job = queue.submit(key, client_ip(request), payload)
+                job = queue.submit(key, client_ip(request, settings.trusted_proxy_hops), payload)
             except jobs.Busy as e:
                 raise HTTPException(429, str(e)) from e
         return {"job_id": job.id}
