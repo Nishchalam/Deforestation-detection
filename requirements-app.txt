@@ -1,12 +1,13 @@
-fastapi
-uvicorn[standard]
-python-multipart
-onnxruntime
-rasterio
-pyproj
-numpy
-scipy
-pillow
-pyyaml
-requests
-earthengine-api
+# Runtime dependencies of the explorer image (no torch). Pinned to the versions the test suite passes with.
+fastapi==0.165.0
+uvicorn==0.54.0
+python-multipart==0.0.34
+onnxruntime==1.32.0
+rasterio==1.5.2
+pyproj==3.8.0
+numpy==2.5.4
+scipy==1.18.1
+pillow==13.0.0
+pyyaml==6.0.3
+requests==2.34.2
+earthengine-api==1.7.53

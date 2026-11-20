@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+.superpowers
+data
+outputs
+models
+cache
+legacy
+notebooks
+reports
+docs
+tests
+**/__pycache__
+.pytest_cache
+*.egg-info
+*.md
