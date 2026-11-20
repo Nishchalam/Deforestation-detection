@@ -18,5 +18,6 @@ def test_onnx_matches_torch(tmp_path):
     assert got.shape == (3, 64, 64)
     assert np.abs(ref - got).max() < 1e-4
     # sliding window over a non-multiple size goes through the ONNX callable
-    out = predict.sliding_logits(export.onnx_infer(export.ort_session(path)), x[0][:, :50, :70], tile=64, overlap=16)
-    assert out.shape == (50, 70)
+    big = np.random.default_rng(1).normal(size=(6, 50, 150)).astype(np.float32)
+    out = predict.sliding_logits(export.onnx_infer(export.ort_session(path)), big, tile=64, overlap=16)
+    assert out.shape == (50, 150)
