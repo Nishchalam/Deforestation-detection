@@ -57,12 +57,12 @@ def _wait(client, job_id, timeout=10):
     raise AssertionError(f"job {job_id} still {body['status']}")
 
 
-def _tif(path, bands=6, size=64, fill=True, crs="EPSG:32720"):
+def _tif(path, bands=6, size=64, fill=True, crs="EPSG:32720", res=10):
     arr = np.zeros((bands, size, size), np.uint16)
     if fill:
         arr[:, :, : size // 2] = 1500  # right half left as no data (all-zero)
     with rasterio.open(path, "w", driver="GTiff", count=bands, dtype="uint16", width=size, height=size,
-                       crs=crs, transform=from_origin(500000, 8900000, 10, 10)) as dst:
+                       crs=crs, transform=from_origin(500000, 8900000, res, res)) as dst:
         dst.write(arr)
     return path
 
@@ -153,6 +153,49 @@ def test_predict_errors(tmp_path):
         assert c.post("/predict").status_code == 422
 
 
+def test_predict_requires_10m_pixels(tmp_path):
+    """C2: a 1 m raster is refused from its header (it would be 100x the pixels for the same area)."""
+    with _client(tmp_path) as c:
+        r = _upload(c, tmp_path, b={"res": 1}, after=False)
+        assert r.status_code == 400 and "10 m" in r.json()["detail"] and "got 1" in r.json()["detail"]
+        r = _upload(c, tmp_path, b={"res": 30}, a={"res": 30})
+        assert r.status_code == 400 and "10 m" in r.json()["detail"]
+        assert _upload(c, tmp_path, b={"res": 10.4}, a={"res": 10.4}).status_code == 200  # within 5 %
+
+
+def test_predict_limits_pixel_count(tmp_path):
+    """C2: the size check is on width*height, not on ground area."""
+    with _client(tmp_path, max_area_km2=0.1) as c:  # 0.1 km2 at 10 m = 1000 px; the upload has 4096
+        r = _upload(c, tmp_path, after=False)
+        assert r.status_code == 400 and "4096 px" in r.json()["detail"] and "1000 px" in r.json()["detail"]
+    with _client(tmp_path, max_area_km2=0.41) as c:  # 4100 px
+        assert _upload(c, tmp_path, after=False).status_code == 200
+
+
+def _vrt_of(tif: Path, path: Path) -> Path:
+    bands = "".join(
+        f'<VRTRasterBand dataType="UInt16" band="{i}"><SimpleSource><SourceFilename relativeToVRT="0">{tif}'
+        f'</SourceFilename><SourceBand>{i}</SourceBand></SimpleSource></VRTRasterBand>' for i in range(1, 7))
+    path.write_text('<VRTDataset rasterXSize="64" rasterYSize="64"><SRS>EPSG:32720</SRS>'
+                    '<GeoTransform>500000,10,0,8900000,0,-10</GeoTransform>' + bands + '</VRTDataset>')
+    return path
+
+
+def test_predict_opens_uploads_as_geotiff_only(tmp_path):
+    """I1: a VRT (which can reference /vsicurl/ or local files) renamed to .tif is refused."""
+    from deforest import predict
+    tif = _tif(tmp_path / "real.tif")
+    vrt = _vrt_of(tif, tmp_path / "evil.tif")
+    with rasterio.open(vrt) as src:  # sanity: without the driver restriction GDAL happily opens it
+        assert src.count == 6
+    with _client(tmp_path) as c, open(vrt, "rb") as f:
+        r = c.post("/predict", files={"before": ("b.tif", f)})
+    assert r.status_code == 400 and "before" in r.json()["detail"]
+    with pytest.raises(rasterio.errors.RasterioIOError):
+        predict.read_composite(vrt)
+    assert predict.read_composite(tif)[0].shape == (6, 64, 64)
+
+
 # ------------------------------------------------------------------ /predict-area
 def test_area_request_validation(tmp_path):
     with _client(tmp_path) as c:
@@ -163,6 +206,25 @@ def test_area_request_validation(tmp_path):
         assert c.post("/predict-area", json={**PAYLOAD, "start": "x"}).status_code == 422
         r = c.post("/predict-area", json={**PAYLOAD, "end": 2015})
         assert r.status_code == 422 and "before" in r.json()["detail"]
+        for bbox in ([-70, -10.0005, -50, -10], [-80, 0, -60, 0.0002], [-180, 89.9, 180, 90]):  # C1
+            r = c.post("/predict-area", json={**PAYLOAD, "bbox": bbox})
+            assert r.status_code == 422 and "degree" in r.json()["detail"]
+
+
+def test_predict_area_body_limit(tmp_path):
+    """M7: /predict-area bodies are tiny JSON; anything above 64 KB is refused before parsing."""
+    with _client(tmp_path) as c:
+        big = json.dumps({**PAYLOAD, "pad": "x" * 70_000})
+        r = c.post("/predict-area", content=big, headers={"Content-Type": "application/json"})
+        assert r.status_code == 413 and "KB" in r.json()["detail"]
+
+        def chunks():
+            yield b'{"bbox": ['
+            for _ in range(70):
+                yield b"0," * 500
+        r = c.post("/predict-area", content=chunks(), headers={"Content-Type": "application/json"})
+        assert r.status_code == 413
+        assert c.post("/predict-area", json=PAYLOAD).status_code == 202
 
 
 def test_area_job_end_to_end(tmp_path):
@@ -340,7 +402,7 @@ def test_cache_eviction_is_lru(tmp_path):
 def test_predict_upload_too_large_by_content_length(tmp_path):
     with _client(tmp_path, max_upload_mb=0.01) as c:  # ~10 KB; the 64x64x6 uint16 tif is ~49 KB
         r = _upload(c, tmp_path)
-        assert r.status_code == 413 and "MB" in r.json()["detail"]
+        assert r.status_code == 413 and "KB" in r.json()["detail"]  # 0.01 MB = 10 KB
     with _client(tmp_path) as c:
         assert _upload(c, tmp_path).status_code == 200
 

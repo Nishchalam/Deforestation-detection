@@ -15,9 +15,13 @@ from typing import Callable
 import numpy as np
 import rasterio
 from pyproj import Geod
+from rasterio.warp import transform_bounds
 
 from . import labels, metrics
 
+MAX_SPAN_DEG = 1.0  # longest allowed bbox side in degrees
+MAX_GRID_SIDE_PX = 10_000  # longest allowed side of the 10 m UTM grid
+GRID_AREA_SLACK = 1.2  # the projected grid may exceed the area limit by this factor (UTM stretch, rotation)
 MIN_YEAR = 2016  # first full Sentinel-2 L1C + cloud-probability coverage
 S2_BANDS = 6
 HANSEN_BANDS = ["treecover2000", "lossyear", "datamask"]
@@ -44,7 +48,8 @@ def bbox_area_km2(bbox) -> float:
 
 
 def last_year(today: date | None = None) -> int:
-    """Latest year with a usable Jun-Sep season: the current year once its October has started."""
+    """Latest year whose default Jun-Sep season is over: the current year once its October has started.
+    `validate_request` additionally checks the months actually requested."""
     today = today or date.today()
     return today.year if today.month >= 10 else today.year - 1
 
@@ -70,9 +75,22 @@ def validate_request(bbox, start: int, end: int, months=(6, 9), max_km2: float =
     m1, m2 = months
     if not 1 <= m1 <= m2 <= 12:
         raise RequestError(f"months must satisfy 1 <= first <= last <= 12 (no wrap over the new year), got {m1}-{m2}")
+    today = today or date.today()
+    if s2_dates(end, (m1, m2))[1] > today.isoformat():
+        raise RequestError(f"the {m1:02d}-{m2:02d} season of {end} is not finished yet; "
+                           f"pick an earlier end year or earlier months")
+    if e - w > MAX_SPAN_DEG or n - s > MAX_SPAN_DEG:
+        raise RequestError(f"Bounding box spans {e - w:.2f} x {n - s:.2f} degrees; each side must be "
+                           f"at most {MAX_SPAN_DEG:g} degree")
     km2 = bbox_area_km2([w, s, e, n])
     if km2 > max_km2:
         raise RequestError(f"area is {km2:.0f} km2, above the {max_km2:g} km2 limit")
+    x0, y0, x1, y1 = transform_bounds("EPSG:4326", utm_crs([w, s, e, n]), w, s, e, n, densify_pts=21)
+    gw, gh = math.ceil((x1 - x0) / 10), math.ceil((y1 - y0) / 10)
+    if max(gw, gh) > MAX_GRID_SIDE_PX or gw * gh * 100 > GRID_AREA_SLACK * max_km2 * 1e6:
+        raise RequestError(f"the box makes a {gw} x {gh} px 10 m grid, above the limit of "
+                           f"{MAX_GRID_SIDE_PX} px per side and {GRID_AREA_SLACK * max_km2:g} km2; "
+                           "draw a more compact box")
 
 
 def s2_dates(year: int, months: tuple[int, int]) -> tuple[str, str]:
@@ -159,7 +177,7 @@ def run_area(pipe, inp: Inputs, start: int, end: int, threshold: float) -> dict:
     res = pipe.run(inp.before, inp.after, inp.transform, nodata_mask=~valid)
     stats = res["stats"]
     fb = stats["forest_before_ha"]
-    stats["loss_pct_of_forest"] = round(100 * stats["loss_ha"] / fb, 2) if fb else 0.0
+    stats["loss_pct_of_forest"] = round(100 * stats["loss_ha"] / fb, 2) if fb else None
     stats["clear_obs_median"] = {"before": float(np.median(inp.n_obs_before[valid])),
                                  "after": float(np.median(inp.n_obs_after[valid]))}
     hansen_loss, stats["hansen"] = None, None

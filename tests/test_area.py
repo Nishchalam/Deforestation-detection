@@ -29,7 +29,7 @@ def test_last_year():
 def test_validate():
     today = date(2026, 11, 20)
     area.validate_request(ARIQUEMES, 2018, 2022, today=today)  # passes
-    area.validate_request(ARIQUEMES, 2018, 2026, months=(1, 12), today=today)
+    area.validate_request(ARIQUEMES, 2018, 2026, months=(6, 9), today=today)
     bad = [
         (dict(start=2015, end=2018), "2016"),
         (dict(start=2020, end=2020), "before"),
@@ -46,6 +46,36 @@ def test_validate():
         kw = {"bbox": ARIQUEMES, **kw}
         with pytest.raises(area.RequestError, match=msg):
             area.validate_request(today=today, **kw)
+
+
+def test_validate_rejects_extreme_aspect_boxes():
+    """C1: small geodesic area but a huge UTM grid (or a degenerate pole box) must be refused."""
+    today = date(2026, 11, 20)
+    for bbox in ([-70, -10.0005, -50, -10], [-80, 0, -60, 0.0002], [-180, 89.9, 180, 90]):
+        with pytest.raises(area.RequestError, match="1 degree|1°"):
+            area.validate_request(bbox, 2018, 2022, today=today)
+    area.validate_request(ARIQUEMES, 2018, 2022, today=today)
+
+
+def test_validate_rejects_big_projected_grid():
+    """C1: a box within the 1 degree span but whose 10 m grid has a side above 10,000 px."""
+    today = date(2026, 11, 20)
+    with pytest.raises(area.RequestError, match="10 m grid"):
+        area.validate_request([-63.0, -10.0005, -62.0, -10.0], 2018, 2022, today=today)  # ~109 km x 55 m = 11k px
+    # the geodesic area passes (6 km2) but the grid does not: only the projected-grid rule catches it
+    assert area.bbox_area_km2([-63.0, -10.0005, -62.0, -10.0]) < 500
+    with pytest.raises(area.RequestError, match="10 m grid"):  # the same on the latitude side
+        area.validate_request([-63.0, -10.0, -62.9995, -9.0], 2018, 2022, today=today)
+
+
+def test_validate_rejects_unfinished_season():
+    """M4: end year allowed, but the chosen months extend past today."""
+    with pytest.raises(area.RequestError, match="not finished|not available"):
+        area.validate_request(ARIQUEMES, 2018, 2026, months=(1, 12), today=date(2026, 11, 20))
+    area.validate_request(ARIQUEMES, 2018, 2026, months=(6, 9), today=date(2026, 11, 20))
+    with pytest.raises(area.RequestError, match="not finished|not available"):  # Oct-Dec 2026 on Oct 15
+        area.validate_request(ARIQUEMES, 2018, 2026, months=(10, 12), today=date(2026, 10, 15))
+    area.validate_request(ARIQUEMES, 2018, 2026, months=(6, 9), today=date(2026, 10, 15))
 
 
 def test_s2_dates():
@@ -111,6 +141,16 @@ def test_run_area_hansen():
     assert s["loss_pct_of_forest"] == pytest.approx(100 * s["loss_ha"] / s["forest_before_ha"], abs=0.01)
     assert s["clear_obs_median"] == {"before": 7, "after": 5}
     assert s["loss_pixels"] == int(pred.sum()) and s["valid_ha"] == round(float(v.sum()) * 0.01, 2)
+
+
+def test_loss_pct_undefined_without_forest():
+    """I3: no forest before -> the share of forest lost is undefined (None), not 0."""
+    inp, _ = _inputs()
+    inp.before[0] = -1.0  # no forest anywhere in the first season
+    inp.after[0] = -1.0
+    res = area.run_area(_pipe(), inp, 2018, 2022, 30)
+    assert res["stats"]["forest_before_ha"] == 0
+    assert res["stats"]["loss_pct_of_forest"] is None
 
 
 def test_run_area_beyond_hansen():

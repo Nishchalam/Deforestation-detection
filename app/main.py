@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import math
 import os
 import shutil
 import tempfile
@@ -37,6 +38,9 @@ ROOT = Path(__file__).resolve().parents[1]
 STATIC = Path(__file__).resolve().parent / "static"
 CONFIG = ROOT / "configs" / "ariquemes.yaml"
 CARD = Path(__file__).resolve().parent / "model_card.json"
+AREA_BODY_LIMIT = 64 * 2**10  # /predict-area takes a few hundred bytes of JSON
+PIXEL_M = 10.0  # uploads must be 10 m Sentinel-2 composites
+PIXEL_TOL = 0.05
 LAYERS = ("forest_before", "forest_after", "loss", "hansen_loss")
 
 
@@ -110,20 +114,25 @@ def _lazy_ee(retry_s: float = 60.0, clock: Callable[[], float] = time.monotonic)
     return ready
 
 
-class UploadLimit:
-    """Reject a request body above `limit` bytes with 413: by Content-Length when sent, and by counting
-    the bytes as they arrive (chunked uploads). Starlette spools uploads to disk while parsing, so this
-    has to run before the endpoint, not inside it."""
+def _size(n: int) -> str:
+    return f"{n / 2**20:g} MB" if n >= 2**20 else f"{n / 2**10:g} KB"
 
-    def __init__(self, app, limit: int, path: str = "/predict"):
-        self.app, self.limit, self.path = app, limit, path
+
+class UploadLimit:
+    """Reject a request body above the limit of its path with 413: by Content-Length when sent, and by
+    counting the bytes as they arrive (chunked uploads). `limits` maps a POST path to its byte limit.
+    Starlette spools uploads to disk while parsing, so this has to run before the endpoint, not inside it."""
+
+    def __init__(self, app, limits: dict[str, int]):
+        self.app, self.limits = app, limits
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or scope["path"] != self.path or scope["method"] != "POST":
+        limit = self.limits.get(scope.get("path")) if scope["type"] == "http" and scope["method"] == "POST" else None
+        if limit is None:
             return await self.app(scope, receive, send)
-        too_big = HTTPException(413, f"upload is larger than the {self.limit / 2**20:g} MB limit")
+        too_big = HTTPException(413, f"request body is larger than the {_size(limit)} limit")
         length = dict(scope["headers"]).get(b"content-length", b"0")
-        if length.isdigit() and int(length) > self.limit:
+        if length.isdigit() and int(length) > limit:
             return await JSONResponse({"detail": too_big.detail}, 413)(scope, receive, send)
         seen = 0
 
@@ -131,7 +140,7 @@ class UploadLimit:
             nonlocal seen
             msg = await receive()
             seen += len(msg.get("body", b"")) if msg["type"] == "http.request" else 0
-            if seen > self.limit:
+            if seen > limit:
                 raise too_big
             return msg
         await self.app(scope, counted, send)
@@ -144,6 +153,14 @@ def _zip(files: dict[str, bytes]) -> Response:
             z.writestr(name, data)
     return Response(buf.getvalue(), media_type="application/zip",
                     headers={"Content-Disposition": 'attachment; filename="deforestation.zip"'})
+
+
+def _check_pixel_size(src) -> None:
+    """400 unless both pixel sizes are 10 m +-5 % (the model is trained on 10 m Sentinel-2)."""
+    tf, f = src.transform, src.crs.linear_units_factor[1]
+    for m in (math.hypot(tf.a, tf.d) * f, math.hypot(tf.b, tf.e) * f):
+        if abs(m - PIXEL_M) > PIXEL_TOL * PIXEL_M:
+            raise HTTPException(400, f"uploads must be 10 m Sentinel-2 composites (got {m:g} m)")
 
 
 def _mask_tif(mask: np.ndarray, profile: dict, description: str) -> bytes:
@@ -209,7 +226,8 @@ def create_app(pipeline=None, fetch=area.fetch_inputs, ee_ready: Callable[[], tu
         queue.shutdown()
 
     app = FastAPI(title="Deforestation explorer", lifespan=lifespan)
-    app.add_middleware(UploadLimit, limit=int(settings.max_upload_mb * 2**20))
+    app.add_middleware(UploadLimit, limits={"/predict": int(settings.max_upload_mb * 2**20),
+                                            "/predict-area": AREA_BODY_LIMIT})
     model_busy = threading.Semaphore(1)  # one /predict model run at a time: refuse rather than queue
 
     @app.get("/health")
@@ -240,13 +258,16 @@ def create_app(pipeline=None, fetch=area.fetch_inputs, ee_ready: Callable[[], tu
                 with open(path, "wb") as f:
                     shutil.copyfileobj(up.file, f)
                 try:
-                    with rasterio.open(path) as src:  # size check from the header, before reading any pixels
+                    # GTiff only: other drivers (VRT, ...) can reference remote or local files
+                    with rasterio.open(path, driver="GTiff") as src:  # checks use the header, before any pixels
                         if src.crs is None or not src.crs.is_projected:
                             raise HTTPException(400, "rasters must be in a projected CRS (metres), e.g. UTM")
-                        km2 = src.width * src.height * metrics.pixel_area_ha(src.transform) / 100
-                    if km2 > settings.max_area_km2:
-                        raise HTTPException(400, f"{name} covers {km2:.0f} km2, above the "
-                                                 f"{settings.max_area_km2:g} km2 limit")
+                        _check_pixel_size(src)
+                        max_px = int(settings.max_area_km2 * 1e6 / PIXEL_M**2)
+                        if src.width * src.height > max_px:
+                            raise HTTPException(400, f"{name} has {src.width * src.height} px "
+                                                     f"({src.width} x {src.height}), above the {max_px} px limit "
+                                                     f"({settings.max_area_km2:g} km2 at 10 m)")
                     arrays[name] = predict.read_composite(path)
                 except (ValueError, rasterio.errors.RasterioError) as e:
                     raise HTTPException(400, f"{name}: {e}") from e

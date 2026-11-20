@@ -89,8 +89,9 @@ class Pipeline:
 
 
 def read_composite(path: str | Path) -> tuple[np.ndarray, dict]:
-    """First 6 bands of a GeoTIFF + its profile. Zero in all bands = no data."""
-    with rasterio.open(path) as src:
+    """First 6 bands of a GeoTIFF + its profile. Zero in all bands = no data. Opened as GTiff only, so a
+    user-supplied file cannot be a VRT or another driver that reads further files or URLs."""
+    with rasterio.open(path, driver="GTiff") as src:
         if src.count < 6:
             raise ValueError(f"{path}: need 6 bands (B2,B3,B4,B8,B11,B12), found {src.count}")
         return src.read(list(range(1, 7))), src.profile
