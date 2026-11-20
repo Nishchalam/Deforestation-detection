@@ -3,6 +3,7 @@
 #
 #   scripts/push_space.sh https://huggingface.co/spaces/<user>/<space>
 #
+# Refuses any remote that is not a Hugging Face Space URL, or that equals this repo's origin.
 # Exports the tracked files of HEAD (git archive, so uncommitted changes are not included) into a
 # temp dir, drops what the image does not need, swaps docs/space/README.md in as README.md (the
 # Space card with its YAML header), commits it as a fresh single-commit repo and pushes it to the
@@ -16,12 +17,22 @@ set -euo pipefail
 [ $# -eq 1 ] || { echo "usage: $0 <space-git-url>" >&2; exit 2; }
 remote=$1
 repo=$(git rev-parse --show-toplevel)
+
+# Never force-push anywhere but a Hugging Face Space, and never to this repo's own origin.
+case "$remote" in
+  https://huggingface.co/spaces/* | git@hf.co:spaces/*) ;;
+  *) echo "refusing: $remote is not a Hugging Face Space URL (https://huggingface.co/spaces/<user>/<space>)" >&2; exit 2 ;;
+esac
+origin=$(git -C "$repo" remote get-url origin 2>/dev/null || true)
+if [ -n "$origin" ] && [ "${remote%.git}" = "${origin%.git}" ]; then
+  echo "refusing: $remote is this repository's own origin" >&2; exit 2
+fi
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 git -C "$repo" archive HEAD | tar -x -C "$tmp"
 # not needed by the Dockerfile (.dockerignore already keeps them out of the image)
-rm -rf "$tmp/notebooks" "$tmp/legacy" "$tmp/reports/figures" "$tmp/docs/superpowers" "$tmp/.github"
+rm -rf "$tmp/notebooks" "$tmp/legacy" "$tmp/reports/figures" "$tmp/docs/superpowers" "$tmp/.github" "$tmp/.superpowers"
 cp "$tmp/docs/space/README.md" "$tmp/README.md"
 
 cd "$tmp"

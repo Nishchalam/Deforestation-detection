@@ -2,8 +2,9 @@
 # Python 3.12 matches the environment the pinned requirements-app.txt was frozen from.
 FROM python:3.12-slim
 
-# libgomp1: OpenMP runtime that onnxruntime needs on slim images
-RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+# libexpat1: the rasterio wheel links it and the slim image does not have it. `ldd` over every .so of the
+# installed requirements-app.txt shows no other system library beyond libc, libstdc++, libm and zlib.
+RUN apt-get update && apt-get install -y --no-install-recommends libexpat1 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -m -u 1000 user
 
