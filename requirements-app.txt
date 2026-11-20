@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+python-multipart
+onnxruntime
+rasterio
+pyproj
+numpy
+scipy
+pillow
+pyyaml
+requests
+earthengine-api
