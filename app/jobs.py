@@ -49,7 +49,7 @@ class JobQueue:
     """`run(payload, out_dir, progress) -> result dict (JSON-serialisable)` is executed one job at a time.
     `progress(message, fraction)` updates the job and is where the timeout is enforced (between stages)."""
 
-    def __init__(self, run: Callable, max_queue: int, cache_dir: Path, cache_size: int, timeout_s: float = 600.0):
+    def __init__(self, run: Callable, max_queue: int, cache_dir: Path, cache_size: int, timeout_s: float = 1200.0):
         self.run, self.max_queue, self.cache_size, self.timeout_s = run, max_queue, cache_size, timeout_s
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)

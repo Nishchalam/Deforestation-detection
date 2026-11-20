@@ -44,7 +44,7 @@ LAYERS = ("forest_before", "forest_after", "loss", "hansen_loss")
 class Settings:
     max_area_km2: float = 500.0
     max_queue: int = 5
-    job_timeout_s: float = 600.0
+    job_timeout_s: float = 1200.0
     cache_size: int = 20
     model_dir: str = "models"
     cache_dir: str = "cache"

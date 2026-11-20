@@ -481,3 +481,7 @@ def test_ee_import_failure_is_reported(monkeypatch):
         return real(name, globals, locals, fromlist, level)
     monkeypatch.setattr(builtins, "__import__", fake)
     assert main._lazy_ee()() == (False, "no earthengine")
+
+
+def test_default_job_timeout_allows_a_slow_first_download():
+    assert main.Settings().job_timeout_s == 1200.0

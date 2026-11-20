@@ -99,3 +99,17 @@ def test_orientation_and_bounds_order():
     h, wd = b.shape
     assert b[: h // 2, wd // 2 :].any()
     assert not b[h // 2 :, :].any() and not b[:, : wd // 2].any()
+
+
+def test_rgb_png_is_capped_and_bounds_still_contain_source():
+    h, w = 2000, 3000
+    img = np.random.default_rng(2).integers(500, 3000, (6, h, w)).astype(np.uint16)
+    png, ((s, west), (n, e)) = render.rgb_png(img, np.ones((h, w), bool), TF, CRS_UTM)
+    im = _open(png)
+    assert max(im.size) <= 1600 and max(im.size) > 1500
+    src_w, src_s, src_e, src_n = transform_bounds(CRS_UTM, "EPSG:4326", 500000, 8900000 - 10 * h, 500000 + 10 * w, 8900000)
+    assert s <= src_s + 1e-4 and west <= src_w + 1e-4 and n >= src_n - 1e-4 and e >= src_e - 1e-4
+    assert src_s - s < 1e-2 and n - src_n < 1e-2
+    assert np.asarray(im)[im.size[1] // 2, im.size[0] // 2, 3] == 255
+    small, _ = render.rgb_png(_img(), np.ones((100, 100), bool), TF, CRS_UTM)  # small inputs are not resized
+    assert max(_open(small).size) <= 100 + 2

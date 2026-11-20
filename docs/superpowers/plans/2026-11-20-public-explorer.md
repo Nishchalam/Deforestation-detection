@@ -20,7 +20,7 @@ Leaflet 1.9.4 + leaflet-draw 1.0.4 (cdnjs), Docker (python:3.11-slim), GitHub Ac
 ## Global Constraints
 - **No synthetic fallbacks.** Earth Engine or data failures surface as errors with the
   reason. Tests may use hand-built arrays and stub pipelines; nothing user-facing may.
-- `MAX_AREA_KM2=500`, `MAX_QUEUE=5`, one active job per client IP, job timeout 600 s,
+- `MAX_AREA_KM2=500`, `MAX_QUEUE=5`, one active job per client IP, job timeout 1200 s,
   cache 20 results. All of these are env-overridable.
 - **Years:** `2016 ≤ start < end ≤ LAST_YEAR`. `LAST_YEAR` is the current year if its
   October has started, else the previous year. **Months:** `1 ≤ m1 ≤ m2 ≤ 12`, with no

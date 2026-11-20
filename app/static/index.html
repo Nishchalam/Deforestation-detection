@@ -64,6 +64,9 @@ a { color: var(--accent); }
   background: var(--warn-bg);
   color: var(--warn-text);
   border-bottom: 1px solid var(--warn-border);
+  position: sticky;
+  top: 0;
+  z-index: 2000;
   font-size: 14px;
   font-weight: 600;
 }
@@ -275,8 +278,8 @@ footer p { margin: 0 0 6px; }
     { key: 'hansen_loss', label: () => 'Loss (Hansen reference)', color: COLORS.hansen_loss, z: 450 },
     { key: 'forest_after', label: (r) => `Forest ${r.end} (model)`, color: COLORS.forest, z: 400 },
     { key: 'forest_before', label: (r) => `Forest ${r.start} (model)`, color: COLORS.forest, z: 390 },
-    { key: 'after_rgb', label: (r) => `Sentinel-2 image ${r.end} (large)`, color: null, z: 300 },
-    { key: 'before_rgb', label: (r) => `Sentinel-2 image ${r.start} (large)`, color: null, z: 290 },
+    { key: 'after_rgb', label: (r) => `Sentinel-2 image ${r.end}`, color: null, z: 300 },
+    { key: 'before_rgb', label: (r) => `Sentinel-2 image ${r.start}`, color: null, z: 290 },
   ];
 
   const state = { max: 500, bbox: null, ee: false, healthOk: false, running: false, jobId: null,
@@ -336,12 +339,15 @@ footer p { margin: 0 0 6px; }
   }));
   let drawer = null;
 
-  function boundsToBbox(b) {  // Leaflet bounds -> [w, s, e, n], wrapped into [-180, 180] and clamped
+  function boundsToBbox(b) {  // Leaflet bounds -> [w, s, e, n]; shifted to the world copy nearest 0, never clipped
     let w = b.getWest(), e = b.getEast();
     const shift = Math.round((w + e) / 2 / 360) * 360;
-    w -= shift; e -= shift;
-    const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-    return [norm(cl(w, -180, 180)), norm(cl(b.getSouth(), -90, 90)), norm(cl(e, -180, 180)), norm(cl(b.getNorth(), -90, 90))];
+    return [norm(w - shift), norm(b.getSouth()), norm(e - shift), norm(b.getNorth())];
+  }
+  function rangeProblem(b) {  // a box that leaves the valid lon/lat range is reported, never clipped
+    if (b[0] < -180 || b[2] > 180) return 'Boxes crossing the 180° meridian are not supported. Draw a box on one side of it.';
+    if (b[1] < -90 || b[3] > 90) return 'The box extends beyond 90° latitude. Draw a smaller box.';
+    return '';
   }
   const bboxToBounds = (b) => L.latLngBounds([b[1], b[0]], [b[3], b[2]]);
 
@@ -352,12 +358,12 @@ footer p { margin: 0 0 6px; }
       $('bboxLine').textContent = ''; $('limitLine').textContent = '';
       return;
     }
-    const km2 = areaKm2(bbox), over = km2 > state.max;
+    const km2 = areaKm2(bbox), range = rangeProblem(bbox), over = km2 > state.max || !!range;
     el.textContent = (live ? 'Drawing: ' : 'Area: ') + fmtKm(km2);
     el.classList.toggle('over', over);
     $('bboxLine').textContent = `W ${bbox[0]}, S ${bbox[1]}, E ${bbox[2]}, N ${bbox[3]}`;
-    $('limitLine').textContent = over ? `Too large: the limit is ${fmtInt.format(state.max)} km². Draw a smaller box.`
-                                      : `Limit: ${fmtInt.format(state.max)} km².`;
+    $('limitLine').textContent = range || (over ? `Too large: the limit is ${fmtInt.format(state.max)} km². Draw a smaller box.`
+                                                : `Limit: ${fmtInt.format(state.max)} km².`);
     $('limitLine').style.color = over ? 'var(--danger)' : '';
     $('limitLine').style.fontWeight = over ? '600' : '';
   }
@@ -375,7 +381,7 @@ footer p { margin: 0 0 6px; }
     } else if (opts.draw) {
       drawn.clearLayers();
     }
-    drawn.eachLayer((l) => l.setStyle && l.setStyle({ color: bbox && areaKm2(bbox) > state.max ? '#e5484d' : '#2f9e6a' }));
+    drawn.eachLayer((l) => l.setStyle && l.setStyle({ color: bbox && (areaKm2(bbox) > state.max || rangeProblem(bbox)) ? '#e5484d' : '#2f9e6a' }));
     showArea(bbox, false);
     updateRun();
   }
@@ -446,6 +452,7 @@ footer p { margin: 0 0 6px; }
     if (!state.ee) return 'Earth Engine is not ready on the server (see below), so analysis is unavailable.';
     if (state.running) return 'A job is in progress.';
     if (!state.bbox) return 'Draw a box on the map or choose an example area to begin.';
+    if (rangeProblem(state.bbox)) return rangeProblem(state.bbox);
     if (areaKm2(state.bbox) > state.max) return `The box is larger than ${fmtInt.format(state.max)} km². Draw a smaller one.`;
     const v = inputs();
     if (v.start >= v.end) return 'The start year must be before the end year.';
@@ -475,7 +482,6 @@ footer p { margin: 0 0 6px; }
         const end = Math.min(2022, y1), start = Math.min(2018, end - 1);
         fillSelect($('start'), years, null, Math.max(start, y0));
         fillSelect($('end'), years, null, end);
-        loadExamples();
       }
       $('eeLine').textContent = state.ee ? '' : `Earth Engine is not ready: ${h.earth_engine_detail}`;
       $('eeLine').style.color = state.ee ? '' : 'var(--danger)';
@@ -495,18 +501,22 @@ footer p { margin: 0 0 6px; }
   async function loadExamples() {
     try {
       const r = await fetch('/static/examples.json');
-      if (!r.ok) return;
+      if (!r.ok) throw new Error(await errorOf(r));
       examples = await r.json();
       examples.forEach((ex, i) => {
         const o = document.createElement('option');
         o.value = String(i); o.textContent = ex.name;
         $('example').appendChild(o);
       });
-    } catch (e) { /* the dropdown simply stays empty */ }
+    } catch (e) {
+      $('exNote').textContent = `Example areas could not be loaded (${e.message}). You can still draw a box.`;
+      $('exNote').style.color = 'var(--danger)';
+    }
   }
   $('example').addEventListener('change', (e) => {
     const ex = examples[+e.target.value];
     $('exNote').textContent = ex ? ex.note || '' : '';
+    $('exNote').style.color = '';
     if (!ex) return;
     setBbox(ex.bbox.map(Number), { draw: true, fit: true });
     setYears(ex.start, ex.end);
@@ -558,28 +568,11 @@ footer p { margin: 0 0 6px; }
 
   async function poll(id, failures) {
     if (state.jobId !== id) return;
-    try {
+    let j;
+    try {  // only the network request and JSON parsing count as a connection problem
       const r = await fetch('/jobs/' + encodeURIComponent(id));
       if (!r.ok) throw Object.assign(new Error(await errorOf(r)), { fatal: r.status === 404 });
-      const j = await r.json();
-      if (j.status === 'queued') {
-        const pos = j.position;
-        setStatus(`Queued${pos ? ` — position ${pos} in the queue` : ''}. Waiting for the server to be free.`, null);
-      } else if (j.status === 'running') {
-        const pct = Math.round(100 * (j.progress || 0));
-        setStatus(`${j.message || 'Running'} — ${pct}%`, pct);
-      } else if (j.status === 'done') {
-        $('statusBox').hidden = true;
-        showResults(j.result);
-        finish();
-        return;
-      } else if (j.status === 'error') {
-        $('statusBox').hidden = true;
-        showError(j.error || 'The job failed.');
-        finish();
-        return;
-      }
-      failures = 0;
+      j = await r.json();
     } catch (e) {
       failures += 1;
       if (e.fatal || failures >= 4) {
@@ -589,8 +582,34 @@ footer p { margin: 0 0 6px; }
         return;
       }
       setStatus(`Connection problem, retrying (${failures})…`, null);
+      state.timer = setTimeout(() => poll(id, failures), POLL_MS);
+      return;
     }
-    state.timer = setTimeout(() => poll(id, failures), POLL_MS);
+    if (j.status === 'done') {
+      $('statusBox').hidden = true;
+      try {
+        showResults(j.result);
+      } catch (e) {  // a rendering bug must not look like a network problem or leave half a result behind
+        clearResults();
+        showError(`The result could not be displayed: ${e.message}`);
+      }
+      finish();
+      return;
+    }
+    if (j.status === 'error') {
+      $('statusBox').hidden = true;
+      showError(j.error || 'The job failed.');
+      finish();
+      return;
+    }
+    if (j.status === 'queued') {
+      const pos = j.position;
+      setStatus(`Queued${pos ? ` — position ${pos} in the queue` : ''}. Waiting for the server to be free.`, null);
+    } else if (j.status === 'running') {
+      const pct = Math.round(100 * (j.progress || 0));
+      setStatus(`${j.message || 'Running'} — ${pct}%`, pct);
+    }
+    state.timer = setTimeout(() => poll(id, 0), POLL_MS);
   }
 
   // ---------------------------------------------------------------- results
@@ -603,6 +622,7 @@ footer p { margin: 0 0 6px; }
   }
 
   function showResults(res) {
+    clearResults();  // removes any overlays left from an earlier result
     const s = res.stats, req = s.request || {};
     const r = { start: req.start, end: req.end };
     const m = req.months || [];
@@ -664,6 +684,7 @@ footer p { margin: 0 0 6px; }
   });
 
   loadHealth();
+  loadExamples();
   showArea(null, false);
 })();
 </script>
