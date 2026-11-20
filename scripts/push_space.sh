@@ -21,11 +21,12 @@ trap 'rm -rf "$tmp"' EXIT
 
 git -C "$repo" archive HEAD | tar -x -C "$tmp"
 # not needed by the Dockerfile (.dockerignore already keeps them out of the image)
-rm -rf "$tmp/notebooks" "$tmp/legacy" "$tmp/reports/figures" "$tmp/.github"
+rm -rf "$tmp/notebooks" "$tmp/legacy" "$tmp/reports/figures" "$tmp/docs/superpowers" "$tmp/.github"
 cp "$tmp/docs/space/README.md" "$tmp/README.md"
 
 cd "$tmp"
-git init -q -b main
+git init -q
+git checkout -q -b main
 git add -A
 git -c user.name="deploy" -c user.email="deploy@localhost" \
     commit -q -m "Deploy $(git -C "$repo" rev-parse --short HEAD)"
