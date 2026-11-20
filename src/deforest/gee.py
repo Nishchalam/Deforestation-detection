@@ -25,22 +25,40 @@ from rasterio.warp import transform_bounds
 HANSEN_PARENT = "projects/earthengine-public/assets/UMD/hansen"
 
 
+def _service_account() -> tuple[object, str | None] | None:
+    """Service-account credentials from $EE_SERVICE_ACCOUNT_KEY (JSON text) or the file named by
+    $GOOGLE_APPLICATION_CREDENTIALS. Returns (credentials, key's project_id), or None if neither is set."""
+    key = os.environ.get("EE_SERVICE_ACCOUNT_KEY")
+    if not key:
+        path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        if not path:
+            return None
+        key = Path(path).read_text()
+    info = json.loads(key)
+    return ee.ServiceAccountCredentials(info["client_email"], key_data=key), info.get("project_id")
+
+
 def initialize(project: str | None = None) -> str:
-    """Initialise EE with `project`, else $EE_PROJECT, else the project stored with the
-    cached credentials. Returns the project used. Raises if not authenticated."""
-    project = project or os.environ.get("EE_PROJECT")
-    if not project:
+    """Initialise EE with a service account ($EE_SERVICE_ACCOUNT_KEY JSON text, else the key file
+    $GOOGLE_APPLICATION_CREDENTIALS) if set, else the cached user credentials. Project: `project`,
+    else $EE_PROJECT, else the key's project_id / the project stored with the cached credentials.
+    Returns the project used. Raises if not authenticated."""
+    sa = _service_account()
+    credentials, key_project = sa if sa else (None, None)
+    project = project or os.environ.get("EE_PROJECT") or key_project
+    if not project and credentials is None:
         cred = Path(ee.oauth.get_credentials_path())
         if cred.exists():
             project = json.loads(cred.read_text()).get("project")
     if not project:
         raise RuntimeError("No GEE project: set EE_PROJECT or pass --project.")
     try:
-        ee.Initialize(project=project)
+        # credentials=None would mean "no credentials"; omit it to use the cached user credentials
+        kwargs = {} if credentials is None else {"credentials": credentials}
+        ee.Initialize(project=project, **kwargs)
     except Exception as e:  # noqa: BLE001 - re-raise with instructions
-        raise RuntimeError(
-            f"Earth Engine init failed for project {project!r}. Run `earthengine authenticate`."
-        ) from e
+        hint = "Check the service-account key." if credentials is not None else "Run `earthengine authenticate`."
+        raise RuntimeError(f"Earth Engine init failed for project {project!r}. {hint}") from e
     return str(project)
 
 
