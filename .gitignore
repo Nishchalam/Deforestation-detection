@@ -20,6 +20,7 @@ outputs/
 *.npz
 runs/
 *.log
+/cache/
 
 # Committed results (small, written by code)
 !reports/
@@ -34,4 +35,5 @@ kaggle.json
 .kaggle/
 credentials
 service-account*.json
+/key.json
 *.token

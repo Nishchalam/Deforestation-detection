@@ -154,11 +154,11 @@ All settings are in [`configs/ariquemes.yaml`](configs/ariquemes.yaml). Data, im
 
 ## Deployment
 
-The **explorer** is a web page and API that runs the exported U-Net on CPU. Draw an area on the map, or upload two composites, to get forest masks, a loss map and hectares next to Hansen. The model was trained only on Ariquemes, so accuracy elsewhere is unmeasured.
+The **explorer** is a web page and API that runs the exported U-Net on CPU. Draw an area on the map to get forest masks, a loss map and hectares next to the Hansen reference. Uploading two 10 m composites gives the same masks and hectares but no Hansen comparison. The model was trained only on Ariquemes, so accuracy elsewhere is unmeasured.
 
 ```bash
 docker build -t deforest .
-docker run --rm -p 7860:7860 -e EE_PROJECT=<gcp-project> -e EE_SERVICE_ACCOUNT_KEY="$(cat key.json)" deforest
+docker run --rm -p 7860:7860 -e EE_PROJECT=<gcp-project> -e EE_SERVICE_ACCOUNT_KEY="$(cat ~/ee-key.json)" deforest  # keep the key outside the repo
 # open http://localhost:7860 (the weights are downloaded from the GitHub release at start)
 ```
 

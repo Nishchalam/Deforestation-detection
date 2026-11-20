@@ -10,8 +10,10 @@ The ONNX weights are not in the image or the repository. The container downloads
 docker build -t deforest .
 docker run --rm -p 7860:7860 deforest                      # upload API only
 docker run --rm -p 7860:7860 -e EE_PROJECT=<gcp-project> \
-    -e EE_SERVICE_ACCOUNT_KEY="$(cat key.json)" deforest   # with area requests
+    -e EE_SERVICE_ACCOUNT_KEY="$(cat ~/ee-key.json)" deforest   # with area requests
 ```
+
+Keep the service-account key outside the repository (here `~/ee-key.json`). `.gitignore` also covers `/key.json`, but a key that is never inside the work tree cannot be committed or copied into an image by accident.
 
 Open <http://localhost:7860>. Without an Earth Engine key `/health` still reports `status: "ok"` with `earth_engine: false`, `/predict` works and `/predict-area` answers 503.
 
@@ -39,6 +41,8 @@ All settings are environment variables.
 | `ORT_THREADS` | 2 | ONNX Runtime threads |
 | `TRUSTED_PROXY_HOPS` | 1 | proxies in front of the app, for the per-client limit (see below) |
 | `EE_RETRY_S` | 60 | wait before retrying a failed Earth Engine start |
+| `MAX_JOBS_PER_IP_PER_DAY` | 10 | new area jobs one client address may start in a rolling 24 h (answer 429 above it) |
+| `MAX_JOBS_PER_DAY` | 100 | new area jobs over all clients in a rolling 24 h; each one spends Earth Engine quota |
 | `MODEL_DIR`, `CACHE_DIR` | `models`, `cache` | the image sets both under `/home/user` |
 | `MODEL_RELEASE` | `models-v2.0` | GitHub release the weights come from |
 | `EE_PROJECT` | | Cloud project used for Earth Engine |
@@ -61,7 +65,7 @@ curl http://localhost:7860/jobs/<job_id>                  # status, progress, th
 curl -o area.zip http://localhost:7860/jobs/<job_id>/download.zip
 ```
 
-`bbox` is `[west, south, east, north]` in degrees. Interactive docs are at `/docs`.
+`bbox` is `[west, south, east, north]` in degrees, at most 1 degree per side, and its 10 m grid must stay within 10,000 px per side and `MAX_AREA_KM2` (plus 20 %). The end of the chosen season must be in the past. Only new jobs count towards the daily limits; a repeated request is served from the cache or the running job. Uploads must be GeoTIFFs with 10 m pixels (+-5 %) in a projected CRS, with at most `MAX_AREA_KM2` / 100 m² pixels. Interactive docs are at `/docs`.
 
 ## Earth Engine service account
 
@@ -70,7 +74,7 @@ Area requests need Earth Engine access that does not depend on a person's login.
 1. In the [Cloud console](https://console.cloud.google.com/) for your project, enable the **Earth Engine API** (APIs & Services, Library).
 2. Under **IAM & Admin, Service Accounts**, create a service account (any name, e.g. `deforest-explorer`).
 3. Grant it the roles **Earth Engine Resource Viewer** and **Service Usage Consumer** (IAM & Admin, IAM, edit the account's roles).
-4. Open the service account, **Keys, Add key, Create new key, JSON**. Keep the downloaded file private and never commit it.
+4. Open the service account, **Keys, Add key, Create new key, JSON**. Keep the downloaded file private, outside the repository (for example `~/ee-key.json`), and never commit it.
 5. Make sure the project is [registered for noncommercial Earth Engine use](https://code.earthengine.google.com/register). Unregistered projects fail to initialise.
 
 The key's JSON text goes into `EE_SERVICE_ACCOUNT_KEY` and the project id into `EE_PROJECT`. After the app is running, `/health` shows `earth_engine: true`, or the reason it failed in `earth_engine_detail`.
@@ -92,10 +96,10 @@ To deploy a new version, commit on GitHub and run the script again. A new model 
 
 ### Check the client address after the first deploy
 
-The `/predict-area` queue allows one active request per client, identified by the address in `X-Forwarded-For`. `TRUSTED_PROXY_HOPS=1` assumes the Spaces proxy appends the client address to that header, so the client is the last entry. This has not been confirmed. After the first deploy, check it in one of two ways:
+The `/predict-area` queue allows one active request per client, and the daily limit counts new jobs per client, both identified by the address in `X-Forwarded-For`. `TRUSTED_PROXY_HOPS=1` assumes the Spaces proxy appends the client address to that header, so the client is the last entry. This has not been confirmed. After the first deploy, check it in one of two ways:
 
-- Submit an area from one network, and while it runs submit another from a second network (a phone on mobile data). Both must be accepted. If the second answers "you already have a request in progress", all clients look like one address (the proxy's), so the value is wrong.
-- Submit twice from one network. The second must be refused. If it is accepted when the request carries its own `X-Forwarded-For: 1.2.3.4` header, clients can bypass the limit, so the value is too high.
+- Submit an area from one network, and while it runs submit a different area from a second network (a phone on mobile data). Both must be accepted. If the second answers "you already have a request in progress", all clients look like one address (the proxy's), so the value is wrong.
+- Submit two DIFFERENT areas from one network (identical requests share one job, so they never trigger the limit). The second must be refused. If it is accepted when the request carries its own `X-Forwarded-For: 1.2.3.4` header, clients can bypass the limit, so the value is too high.
 
 Adjust `TRUSTED_PROXY_HOPS` (a Space variable, no rebuild) and test again.
 
