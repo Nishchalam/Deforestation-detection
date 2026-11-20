@@ -4,7 +4,7 @@
   "best_epoch": 3,
   "best_val_iou": 0.6920056040053434,
   "epochs_run": 23,
-  "train_time_s": 28.1,
+  "train_time_s": 28.6,
   "config": {
     "encoder": "resnet18",
     "in_channels": 6,

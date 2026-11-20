@@ -8,5 +8,7 @@
   "random_forest_ha": 108.52,
   "unet_imagenet_ha": 205.14000000000001,
   "unet_scratch_ha": 150.91,
+  "rf_change_ha": 171.76,
+  "unet_change_ha": 128.14000000000001,
   "prodes_ha": 10.8
 }

@@ -25,7 +25,21 @@ baselines:
 
 change:
   mmu_candidates_px: [0, 10, 25, 50, 100]   # min loss blob size, chosen on val tiles
+  prob_thresholds: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]  # direct models, chosen on val with the MMU
   bootstrap: 2000
+
+change_unet:                # direct change model: both years stacked (12 bands) -> loss mask
+  encoder_weights: imagenet
+  epochs: 80
+  lr: 0.001
+  patience: 20
+  repeats: 8                # 47 train tiles x 1 pair, so more passes per epoch
+
+change_rf:                  # direct per-pixel baseline on the same 12 features
+  pixels: 300000
+  trees: 200
+  max_depth: 20
+  class_weight: balanced_subsample
 
 fast_dev_run:               # FAST_DEV_RUN=1: CPU smoke test, writes to outputs/fast_dev/
   epochs: 1

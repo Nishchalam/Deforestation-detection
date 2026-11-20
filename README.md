@@ -12,8 +12,10 @@ flowchart LR
     H[GEE: Hansen GFC<br/>treecover2000, lossyear] -->|nearest, same grid| L[labels: forest 2018,<br/>forest 2022, loss]
     B --> T[256 px tiles,<br/>blocked train/val/test]
     L --> T
-    T --> M[NDVI, random forest,<br/>U-Net forest masks]
-    M --> C[loss map, hectares,<br/>error analysis, PRODES check]
+    T --> M[forest masks: NDVI,<br/>random forest, U-Net]
+    T --> D2[direct change models:<br/>12-band U-Net, random forest]
+    M -->|2018 AND NOT 2022| C[loss map, hectares,<br/>error analysis, PRODES check]
+    D2 --> C
     C --> D[ONNX + FastAPI + Docker<br/><i>next</i>]
 ```
 
@@ -63,17 +65,23 @@ Whole 256×256 px tiles are assigned to a split. Test is one contiguous 3×3 blo
 | U-Net R18, random init | 0.746 | [0.664, 0.806] | 0.855 | 0.870 | 0.840 |
 <!-- END:forest -->
 
-**Forest loss 2018 → 2022** = predicted forest 2018 AND NOT predicted forest 2022, scored against Hansen loss 2019–2022. The minimum mapping unit (MMU) is chosen on val tiles:
+**Forest loss 2018 → 2022**, scored against Hansen loss 2019–2022. There are two approaches:
+- *Differencing*: predicted forest 2018 AND NOT predicted forest 2022.
+- *Direct*: one model sees both years stacked (12 bands) and predicts loss.
+
+The minimum mapping unit (MMU), and the probability threshold for direct models, are chosen on val tiles:
 
 <!-- BEGIN:change -->
-| Method | MMU (px) | IoU | F1 | F1 95% CI | Precision | Recall | Loss area (ha) |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| NDVI threshold | 100 | 0.229 | 0.372 | [0.132, 0.507] | 0.343 | 0.407 | 138.9 |
-| Random forest (pixel) | 50 | 0.377 | 0.548 | [0.327, 0.632] | 0.569 | 0.528 | 108.5 |
-| U-Net R18, ImageNet init | 50 | 0.280 | 0.438 | [0.190, 0.564] | 0.343 | 0.603 | 205.1 |
-| U-Net R18, random init | 100 | 0.220 | 0.361 | [0.108, 0.491] | 0.320 | 0.413 | 150.9 |
-| *Hansen reference* | | | | | | | 116.8 |
-| *PRODES (independent)* | | | | | | | 10.8 |
+| Method | Approach | MMU (px) | IoU | F1 | F1 95% CI | Precision | Recall | Loss area (ha) |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| NDVI threshold | differencing | 100 | 0.229 | 0.372 | [0.132, 0.507] | 0.343 | 0.407 | 138.9 |
+| Random forest (pixel) | differencing | 50 | 0.377 | 0.548 | [0.327, 0.632] | 0.569 | 0.528 | 108.5 |
+| U-Net R18, ImageNet init | differencing | 50 | 0.280 | 0.438 | [0.190, 0.564] | 0.343 | 0.603 | 205.1 |
+| U-Net R18, random init | differencing | 100 | 0.220 | 0.361 | [0.108, 0.491] | 0.320 | 0.413 | 150.9 |
+| Random forest, direct (12 bands) | direct | 100 | 0.411 | 0.582 | [0.361, 0.685] | 0.489 | 0.719 | 171.8 |
+| U-Net R18, direct (12 bands) | direct | 25 | 0.451 | 0.622 | [0.375, 0.719] | 0.594 | 0.652 | 128.1 |
+| *Hansen reference* | | | | | | | | 116.8 |
+| *PRODES (independent)* | | | | | | | | 10.8 |
 <!-- END:change -->
 
 **Independent check against [PRODES](https://terrabrasilis.dpi.inpe.br/)**, which maps only clear-cut of primary forest, so recall is the meaningful number:
@@ -87,13 +95,15 @@ Whole 256×256 px tiles are assigned to a split. Test is one contiguous 3×3 blo
 | Random forest (pixel) | 0.050 | 0.500 | 0.091 |
 | U-Net R18, ImageNet init | 0.014 | 0.262 | 0.026 |
 | U-Net R18, random init | 0.040 | 0.558 | 0.075 |
+| Random forest, direct (12 bands) | 0.037 | 0.585 | 0.069 |
+| U-Net R18, direct (12 bands) | 0.034 | 0.400 | 0.062 |
 <!-- END:prodes -->
 
 ![Loss error map](reports/figures/change_error_map.png)
 
 What the numbers say, in short:
 - The U-Net is the best forest-mask model, but the confidence intervals of all three learned methods overlap.
-- For loss, differencing two U-Net masks creates false loss slivers along forest edges, and the per-pixel random forest scores better. See the [error analysis](notebooks/end_to_end.ipynb) (section 7).
+- For loss, differencing two masks turns 1–3 pixel edge disagreements into false loss slivers. The direct 12-band U-Net avoids most of them: it has the best loss F1, and its loss area is closest to Hansen. Its CI still overlaps with the direct random forest. See the [error analysis](notebooks/end_to_end.ipynb) (section 7).
 - The test block contains very little PRODES loss, so the PRODES rows on test tiles rest on few pixels.
 
 ## Data sources
@@ -135,7 +145,8 @@ All settings are in [`configs/ariquemes.yaml`](configs/ariquemes.yaml). Data, im
 - **Tiled `getDownloadURL` instead of Export to Drive:** the area is small (~60 MB), so synchronous 1024 px requests under the 32 MB cap keep the download a single scripted step ([limits](https://developers.google.com/earth-engine/apidocs/ee-image-getdownloadurl)).
 - **Loss window 2019–2022:** it equals forest(2018) AND NOT forest(2022) under the label rule. Caveat: loss in Oct–Dec 2018 is missed and Oct–Dec 2022 is included.
 - **U-Net with ResNet-18 encoder, `in_channels=6`:** a standard segmentation baseline; the pretrained RGB filters are adapted to 6 bands ([smp](https://smp.readthedocs.io/en/latest/insights.html#input-channels)).
-- **Minimum mapping unit chosen on val:** removes speckle from mask differencing without touching test data.
+- **Direct change model (both years stacked):** the network compares the dates itself instead of subtracting two independent masks ([early-fusion change detection, Daudt et al. 2018](https://arxiv.org/abs/1810.08462)).
+- **Minimum mapping unit and threshold chosen on val:** removes speckle without touching test data.
 - **Blocked spatial split:** avoids inflated scores from neighbouring, near-identical tiles ([Roberts et al. 2017](https://doi.org/10.1111/ecog.02881)).
 
 ## Limitations (so far)
@@ -144,7 +155,7 @@ All settings are in [`configs/ariquemes.yaml`](configs/ariquemes.yaml). Data, im
 - Hansen has label noise: some pixels it calls forest in 2022 already look cleared (e.g. loss it records only in 2023 or later).
 - L1C is top-of-atmosphere reflectance (no atmospheric correction). Both years are treated the same way.
 - With 64 tiles, the test set is 9 tiles, so the confidence intervals are wide.
-- Change detection by differencing two masks turns small edge disagreements into false loss.
+- Remaining loss errors are mostly 1–3 pixel boundary disagreements with Hansen's 30 m grid, plus degraded (not cleared) forest, which Hansen sometimes counts as loss.
 
 ## Legacy: EuroSAT CNN benchmark (v1)
 

@@ -66,7 +66,8 @@ def legacy_table() -> str:
 
 
 NAMES = {"ndvi": "NDVI threshold", "random_forest": "Random forest (pixel)",
-         "unet_imagenet": "U-Net R18, ImageNet init", "unet_scratch": "U-Net R18, random init", "hansen": "Hansen loss (the training labels)"}
+         "unet_imagenet": "U-Net R18, ImageNet init", "unet_scratch": "U-Net R18, random init", "hansen": "Hansen loss (the training labels)",
+         "rf_change": "Random forest, direct (12 bands)", "unet_change": "U-Net R18, direct (12 bands)"}
 
 
 def _ci(ci):
@@ -85,15 +86,15 @@ def forest_table() -> str:
 
 def change_table() -> str:
     r, a = load("change_test.json"), load("area_test.json")
-    lines = [f"| Method | MMU (px) | IoU | F1 | F1 95% CI | Precision | Recall | Loss area (ha) |",
-             "|---|---:|---:|---:|---:|---:|---:|---:|"]
+    lines = [f"| Method | Approach | MMU (px) | IoU | F1 | F1 95% CI | Precision | Recall | Loss area (ha) |",
+             "|---|---|---:|---:|---:|---:|---:|---:|---:|"]
     for m, v in r["results"].items():
         p = v["pooled"]
-        lines.append(f"| {NAMES.get(m, m)} | {v['mmu_px']} | {p['iou']:.3f} | {p['f1']:.3f} | {_ci(v['ci95']['f1'])} | "
+        lines.append(f"| {NAMES.get(m, m)} | {v['approach']} | {v['mmu_px']} | {p['iou']:.3f} | {p['f1']:.3f} | {_ci(v['ci95']['f1'])} | "
                      f"{p['precision']:.3f} | {p['recall']:.3f} | {a[m + '_ha']:.1f} |")
-    lines.append(f"| *Hansen reference* | | | | | | | {a['hansen_ha']:.1f} |")
+    lines.append(f"| *Hansen reference* | | | | | | | | {a['hansen_ha']:.1f} |")
     if "prodes_ha" in a:
-        lines.append(f"| *PRODES (independent)* | | | | | | | {a['prodes_ha']:.1f} |")
+        lines.append(f"| *PRODES (independent)* | | | | | | | | {a['prodes_ha']:.1f} |")
     return "\n".join(lines)
 
 
