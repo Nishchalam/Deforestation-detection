@@ -65,7 +65,51 @@ def legacy_table() -> str:
     return out.stdout.strip()
 
 
-TABLES = {"data": data_table, "split": split_table, "legacy": legacy_table}
+NAMES = {"ndvi": "NDVI threshold", "random_forest": "Random forest (pixel)",
+         "unet_imagenet": "U-Net R18, ImageNet init", "unet_scratch": "U-Net R18, random init", "hansen": "Hansen loss (the training labels)"}
+
+
+def _ci(ci):
+    return f"[{ci[0]:.3f}, {ci[1]:.3f}]"
+
+
+def forest_table() -> str:
+    r = load("forest_mask_test.json")
+    lines = ["| Method | IoU | IoU 95% CI | F1 | Precision | Recall |", "|---|---:|---:|---:|---:|---:|"]
+    for m, v in r["results"].items():
+        p = v["pooled"]
+        lines.append(f"| {NAMES.get(m, m)} | {p['iou']:.3f} | {_ci(v['ci95']['iou'])} | {p['f1']:.3f} | "
+                     f"{p['precision']:.3f} | {p['recall']:.3f} |")
+    return "\n".join(lines)
+
+
+def change_table() -> str:
+    r, a = load("change_test.json"), load("area_test.json")
+    lines = [f"| Method | MMU (px) | IoU | F1 | F1 95% CI | Precision | Recall | Loss area (ha) |",
+             "|---|---:|---:|---:|---:|---:|---:|---:|"]
+    for m, v in r["results"].items():
+        p = v["pooled"]
+        lines.append(f"| {NAMES.get(m, m)} | {v['mmu_px']} | {p['iou']:.3f} | {p['f1']:.3f} | {_ci(v['ci95']['f1'])} | "
+                     f"{p['precision']:.3f} | {p['recall']:.3f} | {a[m + '_ha']:.1f} |")
+    lines.append(f"| *Hansen reference* | | | | | | | {a['hansen_ha']:.1f} |")
+    if "prodes_ha" in a:
+        lines.append(f"| *PRODES (independent)* | | | | | | | {a['prodes_ha']:.1f} |")
+    return "\n".join(lines)
+
+
+def prodes_table() -> str:
+    r = load("prodes_test.json")
+    lines = ["| vs PRODES 2019-2022, test tiles unless noted | Precision | Recall | F1 |", "|---|---:|---:|---:|"]
+    for k, v in r.items():
+        if isinstance(v, dict):
+            base = k.replace("_vs_prodes", "").replace("_whole_aoi", "")
+            name = NAMES.get(base, base) + (" — whole AOI" if k.endswith("_whole_aoi") else "")
+            lines.append(f"| {name} | {v['precision']:.3f} | {v['recall']:.3f} | {v['f1']:.3f} |")
+    return "\n".join(lines)
+
+
+TABLES = {"data": data_table, "split": split_table, "forest": forest_table, "change": change_table,
+          "prodes": prodes_table, "legacy": legacy_table}
 
 
 def render(text: str) -> str:
