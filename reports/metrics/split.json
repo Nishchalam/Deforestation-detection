@@ -1,0 +1,376 @@
+{
+  "tile_px": 256,
+  "grid_tiles": [
+    8,
+    8
+  ],
+  "dropped_strips_px": {
+    "right": 142,
+    "bottom": 165
+  },
+  "rule": "test = test_block whose forest+loss fractions are closest to the tiled-area fractions; val = same rule over val_block (both orientations), not touching test; rest = train",
+  "all": {
+    "n_tiles": 64,
+    "valid_px": 4194067,
+    "forest_frac_2018": 0.404,
+    "forest_frac_2022": 0.3815,
+    "loss_frac_2019_2022": 0.02251,
+    "loss_px_2019_2022": 94425
+  },
+  "train": {
+    "stats": {
+      "n_tiles": 47,
+      "valid_px": 3079955,
+      "forest_frac_2018": 0.4051,
+      "forest_frac_2022": 0.382,
+      "loss_frac_2019_2022": 0.02312,
+      "loss_px_2019_2022": 71195
+    },
+    "tiles": [
+      {
+        "id": "r00c00",
+        "row": 0,
+        "col": 0
+      },
+      {
+        "id": "r00c01",
+        "row": 0,
+        "col": 1
+      },
+      {
+        "id": "r00c02",
+        "row": 0,
+        "col": 2
+      },
+      {
+        "id": "r00c03",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "id": "r00c07",
+        "row": 0,
+        "col": 7
+      },
+      {
+        "id": "r01c00",
+        "row": 1,
+        "col": 0
+      },
+      {
+        "id": "r01c01",
+        "row": 1,
+        "col": 1
+      },
+      {
+        "id": "r01c02",
+        "row": 1,
+        "col": 2
+      },
+      {
+        "id": "r01c03",
+        "row": 1,
+        "col": 3
+      },
+      {
+        "id": "r01c07",
+        "row": 1,
+        "col": 7
+      },
+      {
+        "id": "r02c00",
+        "row": 2,
+        "col": 0
+      },
+      {
+        "id": "r02c01",
+        "row": 2,
+        "col": 1
+      },
+      {
+        "id": "r02c02",
+        "row": 2,
+        "col": 2
+      },
+      {
+        "id": "r02c03",
+        "row": 2,
+        "col": 3
+      },
+      {
+        "id": "r02c07",
+        "row": 2,
+        "col": 7
+      },
+      {
+        "id": "r03c00",
+        "row": 3,
+        "col": 0
+      },
+      {
+        "id": "r03c01",
+        "row": 3,
+        "col": 1
+      },
+      {
+        "id": "r03c02",
+        "row": 3,
+        "col": 2
+      },
+      {
+        "id": "r03c03",
+        "row": 3,
+        "col": 3
+      },
+      {
+        "id": "r03c04",
+        "row": 3,
+        "col": 4
+      },
+      {
+        "id": "r03c05",
+        "row": 3,
+        "col": 5
+      },
+      {
+        "id": "r03c06",
+        "row": 3,
+        "col": 6
+      },
+      {
+        "id": "r03c07",
+        "row": 3,
+        "col": 7
+      },
+      {
+        "id": "r04c00",
+        "row": 4,
+        "col": 0
+      },
+      {
+        "id": "r04c01",
+        "row": 4,
+        "col": 1
+      },
+      {
+        "id": "r04c02",
+        "row": 4,
+        "col": 2
+      },
+      {
+        "id": "r04c03",
+        "row": 4,
+        "col": 3
+      },
+      {
+        "id": "r04c04",
+        "row": 4,
+        "col": 4
+      },
+      {
+        "id": "r04c05",
+        "row": 4,
+        "col": 5
+      },
+      {
+        "id": "r04c06",
+        "row": 4,
+        "col": 6
+      },
+      {
+        "id": "r04c07",
+        "row": 4,
+        "col": 7
+      },
+      {
+        "id": "r05c00",
+        "row": 5,
+        "col": 0
+      },
+      {
+        "id": "r05c01",
+        "row": 5,
+        "col": 1
+      },
+      {
+        "id": "r05c02",
+        "row": 5,
+        "col": 2
+      },
+      {
+        "id": "r05c03",
+        "row": 5,
+        "col": 3
+      },
+      {
+        "id": "r05c04",
+        "row": 5,
+        "col": 4
+      },
+      {
+        "id": "r05c05",
+        "row": 5,
+        "col": 5
+      },
+      {
+        "id": "r05c06",
+        "row": 5,
+        "col": 6
+      },
+      {
+        "id": "r05c07",
+        "row": 5,
+        "col": 7
+      },
+      {
+        "id": "r06c04",
+        "row": 6,
+        "col": 4
+      },
+      {
+        "id": "r06c05",
+        "row": 6,
+        "col": 5
+      },
+      {
+        "id": "r06c06",
+        "row": 6,
+        "col": 6
+      },
+      {
+        "id": "r06c07",
+        "row": 6,
+        "col": 7
+      },
+      {
+        "id": "r07c04",
+        "row": 7,
+        "col": 4
+      },
+      {
+        "id": "r07c05",
+        "row": 7,
+        "col": 5
+      },
+      {
+        "id": "r07c06",
+        "row": 7,
+        "col": 6
+      },
+      {
+        "id": "r07c07",
+        "row": 7,
+        "col": 7
+      }
+    ]
+  },
+  "val": {
+    "stats": {
+      "n_tiles": 8,
+      "valid_px": 524288,
+      "forest_frac_2018": 0.3972,
+      "forest_frac_2022": 0.3752,
+      "loss_frac_2019_2022": 0.02203,
+      "loss_px_2019_2022": 11550
+    },
+    "tiles": [
+      {
+        "id": "r06c00",
+        "row": 6,
+        "col": 0
+      },
+      {
+        "id": "r06c01",
+        "row": 6,
+        "col": 1
+      },
+      {
+        "id": "r06c02",
+        "row": 6,
+        "col": 2
+      },
+      {
+        "id": "r06c03",
+        "row": 6,
+        "col": 3
+      },
+      {
+        "id": "r07c00",
+        "row": 7,
+        "col": 0
+      },
+      {
+        "id": "r07c01",
+        "row": 7,
+        "col": 1
+      },
+      {
+        "id": "r07c02",
+        "row": 7,
+        "col": 2
+      },
+      {
+        "id": "r07c03",
+        "row": 7,
+        "col": 3
+      }
+    ]
+  },
+  "test": {
+    "stats": {
+      "n_tiles": 9,
+      "valid_px": 589824,
+      "forest_frac_2018": 0.404,
+      "forest_frac_2022": 0.3842,
+      "loss_frac_2019_2022": 0.0198,
+      "loss_px_2019_2022": 11680
+    },
+    "tiles": [
+      {
+        "id": "r00c04",
+        "row": 0,
+        "col": 4
+      },
+      {
+        "id": "r00c05",
+        "row": 0,
+        "col": 5
+      },
+      {
+        "id": "r00c06",
+        "row": 0,
+        "col": 6
+      },
+      {
+        "id": "r01c04",
+        "row": 1,
+        "col": 4
+      },
+      {
+        "id": "r01c05",
+        "row": 1,
+        "col": 5
+      },
+      {
+        "id": "r01c06",
+        "row": 1,
+        "col": 6
+      },
+      {
+        "id": "r02c04",
+        "row": 2,
+        "col": 4
+      },
+      {
+        "id": "r02c05",
+        "row": 2,
+        "col": 5
+      },
+      {
+        "id": "r02c06",
+        "row": 2,
+        "col": 6
+      }
+    ]
+  }
+}

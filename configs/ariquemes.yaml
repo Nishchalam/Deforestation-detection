@@ -34,5 +34,11 @@ labels:
 download:
   tile_px: 1024                        # request tile edge; keeps each request under the 32 MB cap
 
+tiling:
+  tile_px: 256                         # full tiles only; partial strips at right/bottom dropped
+  test_block: [3, 3]                   # tiles (rows, cols); one contiguous block
+  val_block: [2, 4]                    # either orientation; must not touch the test block
+
 paths:
   raw: data/raw/ariquemes
+  processed: data/processed/ariquemes
