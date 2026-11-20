@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from deforest import area
+
 log = logging.getLogger(__name__)
 ACTIVE = ("queued", "running")
 DAY_S = 24 * 3600.0
@@ -169,7 +171,7 @@ class JobQueue:
             self._evict()
             job.result, job.progress, job.message, job.status = result, 1.0, "done", "done"
         except Exception as e:  # noqa: BLE001 - the reason is shown to the user
-            if not isinstance(e, (JobTimeout, ValueError)):
+            if not isinstance(e, (JobTimeout, area.RequestError)):  # user errors and timeouts need no traceback
                 log.exception("job %s failed", job.id)
             shutil.rmtree(out, ignore_errors=True)
             job.error, job.status = str(e) or type(e).__name__, "error"

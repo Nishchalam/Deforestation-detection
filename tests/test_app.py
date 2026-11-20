@@ -459,6 +459,20 @@ def test_fetch_error_surfaces(tmp_path):
         assert again != first and _wait(c, again)["status"] == "error"
 
 
+def test_unexpected_errors_are_logged_with_traceback(tmp_path, caplog):
+    """L1: only user errors (RequestError) and timeouts skip the traceback; a bare ValueError is a bug."""
+    import logging
+    q = _queue(tmp_path, lambda payload, out, progress: (_ for _ in ()).throw(payload))
+    with caplog.at_level(logging.ERROR, logger="app.jobs"):
+        for key, exc in (("a", area.RequestError("no scenes")), ("b", jobs.JobTimeout("slow")),
+                         ("c", ValueError("operands could not be broadcast"))):
+            job = q.submit(key, key, exc)
+            assert job.finished.wait(10) and job.status == "error" and job.error
+    q.shutdown()
+    logged = [r for r in caplog.records if r.exc_info]
+    assert len(logged) == 1 and "operands could not be broadcast" in str(logged[0].exc_info[1])
+
+
 def test_no_hansen_layer_beyond_hansen_year(tmp_path):
     with _client(tmp_path, fetch=_stub_fetch(hansen_last_year=END - 1)) as c:
         body = _wait(c, c.post("/predict-area", json={**PAYLOAD, "end": END}).json()["job_id"])
