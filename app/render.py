@@ -55,12 +55,22 @@ def _png(rgba: np.ndarray) -> bytes:
     return buf.getvalue()
 
 
-def rgb_png(img6: np.ndarray, valid, transform, crs, max_px: int = 1600) -> tuple[bytes, list[list[float]]]:
+def stretch_ref(imgs, valid) -> np.ndarray:
+    """Reference image for a shared colour stretch: the valid pixels of every (6,H,W) composite in `imgs`
+    side by side (invalid pixels zeroed, which the stretch ignores). Pass it as `rgb_png(..., ref=...)` for
+    each composite so that colour differences between them are real, not two independent stretches."""
+    valid = np.asarray(valid, bool)
+    return np.concatenate([np.asarray(i) * (valid & (np.asarray(i) > 0).any(axis=0))[None] for i in imgs], axis=2)
+
+
+def rgb_png(img6: np.ndarray, valid, transform, crs, max_px: int = 1600,
+            ref: np.ndarray | None = None) -> tuple[bytes, list[list[float]]]:
     """(6,H,W) composite (B2,B3,B4,B8,B11,B12) -> true-colour RGBA PNG and bounds [[S,W],[N,E]].
-    Percentile stretch uses valid pixels only; invalid and out-of-footprint pixels are transparent.
+    Percentile stretch uses valid pixels only (or the `ref` image's, see `stretch_ref`); invalid and
+    out-of-footprint pixels are transparent.
     The PNG's longest side is at most `max_px` (area-averaged when it has to shrink) to keep it light for browsers."""
     valid = np.asarray(valid, bool) & (img6 > 0).any(axis=0)
-    rgb = np.nan_to_num(viz.rgb(img6 * valid[None], ("B4", "B3", "B2"), 2, 98))  # (H,W,3) in [0,1]
+    rgb = np.nan_to_num(viz.rgb(img6 * valid[None], ("B4", "B3", "B2"), 2, 98, ref=ref))  # (H,W,3) in [0,1]
     stack = np.concatenate([rgb.transpose(2, 0, 1), valid[None].astype(np.float32)]).astype(np.float32)
     _, dw, dh = _grid(valid.shape, transform, crs, max_px)
     full = calculate_default_transform(crs, WEB_MERCATOR, valid.shape[1], valid.shape[0],

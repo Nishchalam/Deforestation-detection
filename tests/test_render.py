@@ -113,3 +113,28 @@ def test_rgb_png_is_capped_and_bounds_still_contain_source():
     assert np.asarray(im)[im.size[1] // 2, im.size[0] // 2, 3] == 255
     small, _ = render.rgb_png(_img(), np.ones((100, 100), bool), TF, CRS_UTM)  # small inputs are not resized
     assert max(_open(small).size) <= 100 + 2
+
+
+def test_shared_stretch_keeps_a_real_brightness_change():
+    """M2: independent 2-98% stretches hide a uniform brightening; a shared reference shows it."""
+    before = _img()
+    after = (before * 1.5).astype(np.uint16)
+    valid = np.ones((100, 100), bool)
+
+    def mean_rgb(img, **kw):
+        png, _ = render.rgb_png(img, valid, TF, CRS_UTM, **kw)
+        return np.asarray(_open(png))[..., :3].astype(float).mean()
+
+    assert abs(mean_rgb(before) - mean_rgb(after)) < 2  # independent: the change disappears
+    ref = render.stretch_ref([before, after], valid)
+    assert mean_rgb(after, ref=ref) > mean_rgb(before, ref=ref) + 10  # shared: it is visible
+    assert render.rgb_png(before, valid, TF, CRS_UTM)[0] == render.rgb_png(before, valid, TF, CRS_UTM, ref=None)[0]
+
+
+def test_stretch_ref_uses_valid_pixels_only():
+    img = _img()
+    img[:, :, :50] = 60000  # huge values in an invalid strip must not set the stretch
+    valid = np.ones((100, 100), bool)
+    valid[:, :50] = False
+    ref = render.stretch_ref([img], valid)
+    assert ref.max() < 3000

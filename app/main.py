@@ -201,8 +201,10 @@ def create_app(pipeline=None, fetch=area.fetch_inputs, ee_ready: Callable[[], tu
         progress("rendering layers", 0.92)
         (out / "layers").mkdir()
         layers = {}
-        pngs = {"before_rgb": render.rgb_png(inp.before, res["valid"], inp.transform, inp.crs),
-                "after_rgb": render.rgb_png(inp.after, res["valid"], inp.transform, inp.crs)}
+        ref = render.stretch_ref([inp.before, inp.after], res["valid"])  # one stretch for both seasons
+        pngs = {"before_rgb": render.rgb_png(inp.before, res["valid"], inp.transform, inp.crs, ref=ref),
+                "after_rgb": render.rgb_png(inp.after, res["valid"], inp.transform, inp.crs, ref=ref)}
+        del ref
         for name in LAYERS:
             if res[name] is not None:
                 pngs[name] = render.mask_png(res[name], inp.transform, inp.crs, render.LAYER_COLORS[name])
@@ -240,7 +242,7 @@ def create_app(pipeline=None, fetch=area.fetch_inputs, ee_ready: Callable[[], tu
     def health():
         ok, detail = ee_ready()
         return {"status": "ok", "model": {"release": settings.model_release, "sha256s": sha256s},
-                "earth_engine": ok, "earth_engine_detail": detail,
+                "earth_engine": ok, "earth_engine_detail": "ready" if ok else detail,
                 "queue": {"active": queue.active(), "max": settings.max_queue},
                 "years": [area.MIN_YEAR, area.last_year()], "max_area_km2": settings.max_area_km2}
 

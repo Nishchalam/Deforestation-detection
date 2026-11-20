@@ -85,10 +85,16 @@ def test_health(tmp_path):
     with _client(tmp_path) as c:
         body = c.get("/health").json()
     assert body["status"] == "ok"
-    assert body["earth_engine"] is True and body["earth_engine_detail"] == "proj"
+    assert body["earth_engine"] is True and body["earth_engine_detail"] == "ready"  # no GCP project id
     assert body["years"] == [2016, END] and body["max_area_km2"] == 500
     assert body["model"]["release"] == "models-v2.0" and len(body["model"]["sha256s"]) == 2
     assert body["queue"]["active"] == 0 and body["queue"]["max"] == 5
+
+
+def test_health_keeps_the_failure_reason(tmp_path):
+    with _client(tmp_path, ee=(False, "no credentials")) as c:
+        body = c.get("/health").json()
+    assert body["earth_engine"] is False and body["earth_engine_detail"] == "no credentials"
 
 
 def test_index_and_static(tmp_path):
@@ -97,9 +103,12 @@ def test_index_and_static(tmp_path):
         assert "<title>Deforestation explorer</title>" in page
         assert "Model trained only on Ariquemes, Rondônia (Brazil), 2018 vs 2022. " \
                "Accuracy elsewhere is unmeasured — compare with the Hansen layer." in page
+        assert "at most ${MAX_SPAN} degree" in page  # C1: the same span rule as the server
+        assert "start+1" in page and "seasonal" in page  # M1
         assert c.get("/static/index.html").status_code == 200
         examples = c.get("/static/examples.json").json()
         assert examples[0]["note"] == "training area" and len(examples) == 5
+        assert not any(ch.isdigit() for e in examples[1:] for ch in e["note"].replace("2019", "").replace("2022", ""))
         assert all(set(e) == {"name", "bbox", "start", "end", "note"} for e in examples)
 
 
@@ -391,6 +400,27 @@ def test_daily_limit_settings_from_env(monkeypatch):
     monkeypatch.setenv("MAX_JOBS_PER_DAY", "7")
     st = main.Settings.from_env()
     assert (st.max_jobs_per_ip_per_day, st.max_jobs_per_day) == (3, 7)
+
+
+def test_both_seasons_share_one_colour_stretch(tmp_path, monkeypatch):
+    """M2: the app renders before and after with the same reference stretch."""
+    from app import render
+    mine, seen, base = {}, [], _stub_fetch()
+    real = render.rgb_png
+
+    def fetch(*args):
+        inp = base(*args)
+        mine.update(before=inp.before, after=inp.after)
+        return inp
+
+    def spy(img, valid, transform, crs, **kw):
+        if img is mine.get("before") or img is mine.get("after"):  # ignore jobs leaked by earlier tests
+            seen.append(kw.get("ref"))
+        return real(img, valid, transform, crs, **kw)
+    monkeypatch.setattr(render, "rgb_png", spy)
+    with _client(tmp_path, fetch=fetch) as c:
+        assert _wait(c, c.post("/predict-area", json=PAYLOAD).json()["job_id"])["status"] == "done"
+    assert len(seen) == 2 and seen[0] is not None and seen[0] is seen[1]
 
 
 def test_earth_engine_unavailable(tmp_path):

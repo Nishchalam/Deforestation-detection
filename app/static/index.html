@@ -234,9 +234,10 @@ footer p { margin: 0 0 6px; }
     <section class="card howto" aria-labelledby="h-how">
       <h2 id="h-how">How to read this</h2>
       <ul>
+        <li><strong>Seasons.</strong> Each year is a composite of the clear Sentinel-2 images from the months you chose (June to September by default), not a single date, so what you see is a seasonal picture.</li>
         <li><strong>Forest</strong> is the model's forest mask for that year.</li>
         <li><strong>Loss (model)</strong> is forest in the start year that is not forest in the end year, from the change model.</li>
-        <li><strong>Hansen</strong> is the Global Forest Change reference: tree cover 2000 of at least 30% with a recorded loss year in the chosen range. It is a reference, not ground truth.</li>
+        <li><strong>Hansen</strong> is the Global Forest Change reference: tree cover 2000 of at least 30% with a recorded loss year in the chosen range. Hansen records loss by calendar year, and the range counts the years after the start year up to and including the end year (start+1 … end). It is a reference, not ground truth.</li>
         <li><strong>Agreement</strong> (F1, IoU, precision, recall) compares the model's loss pixels with Hansen's. Neither is ground truth, so differences can come from either source.</li>
       </ul>
     </section>
@@ -344,9 +345,12 @@ footer p { margin: 0 0 6px; }
     const shift = Math.round((w + e) / 2 / 360) * 360;
     return [norm(w - shift), norm(b.getSouth()), norm(e - shift), norm(b.getNorth())];
   }
-  function rangeProblem(b) {  // a box that leaves the valid lon/lat range is reported, never clipped
+  const MAX_SPAN = 1;  // longest allowed box side in degrees (the server refuses more)
+  function rangeProblem(b) {  // a box that leaves the valid lon/lat range or is too long is reported, never clipped
     if (b[0] < -180 || b[2] > 180) return 'Boxes crossing the 180° meridian are not supported. Draw a box on one side of it.';
     if (b[1] < -90 || b[3] > 90) return 'The box extends beyond 90° latitude. Draw a smaller box.';
+    if (b[2] - b[0] > MAX_SPAN || b[3] - b[1] > MAX_SPAN)  // same rule and wording as the server
+      return `Bounding box spans ${(b[2] - b[0]).toFixed(2)} x ${(b[3] - b[1]).toFixed(2)} degrees; each side must be at most ${MAX_SPAN} degree.`;
     return '';
   }
   const bboxToBounds = (b) => L.latLngBounds([b[1], b[0]], [b[3], b[2]]);
@@ -520,6 +524,8 @@ footer p { margin: 0 0 6px; }
     if (!ex) return;
     setBbox(ex.bbox.map(Number), { draw: true, fit: true });
     setYears(ex.start, ex.end);
+    $('m1').value = '6'; $('m2').value = '9';  // the examples are dry-season (Jun–Sep) comparisons
+    updateRun();
     hideError();
   });
 
