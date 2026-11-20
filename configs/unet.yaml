@@ -1,0 +1,35 @@
+# Models for the forest-mask task (notebook + scripts). Data config: configs/ariquemes.yaml
+seed: 42
+
+unet:
+  encoder: resnet18
+  in_channels: 6
+  variants:                 # name -> encoder_weights
+    imagenet: imagenet
+    scratch: null
+  epochs: 80
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  patience: 20              # epochs without val IoU improvement
+  repeats: 4                # passes over the train tiles per epoch (with random flips/rotations)
+  amp: true
+  num_workers: 4
+
+baselines:
+  ndvi_grid: [0.0, 1.0, 0.01]   # start, stop, step for the threshold search on val tiles
+  rf_pixels: 300000             # random train pixels (both years)
+  rf_trees: 200
+  rf_max_depth: 20
+  rf_n_jobs: 8
+
+change:
+  mmu_candidates_px: [0, 10, 25, 50, 100]   # min loss blob size, chosen on val tiles
+  bootstrap: 2000
+
+fast_dev_run:               # FAST_DEV_RUN=1: CPU smoke test, writes to outputs/fast_dev/
+  epochs: 1
+  max_batches: 2
+  rf_pixels: 5000
+  rf_trees: 10
+  bootstrap: 50
