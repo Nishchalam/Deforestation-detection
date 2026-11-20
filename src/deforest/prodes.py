@@ -42,3 +42,9 @@ def rasterize_years(fc: dict, years: range, shape: tuple[int, int], transform, c
         return np.zeros(shape, bool)
     return rasterize(geoms, out_shape=shape, transform=transform, fill=0, default_value=1,
                      dtype="uint8").astype(bool)
+
+
+def load_or_fetch(bbox: list[float], path: str | Path) -> dict:
+    """Cached GeoJSON if present, else fetch from the WFS (and cache it)."""
+    path = Path(path)
+    return json.loads(path.read_text()) if path.exists() else fetch(bbox, path)

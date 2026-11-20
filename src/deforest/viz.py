@@ -43,3 +43,33 @@ def densest_window(mask: np.ndarray, size: int) -> tuple[int, int]:
             if s > best:
                 best, pos = s, (r, c)
     return pos
+
+
+def error_gallery(mask: np.ndarray, cat: np.ndarray, true_loss: np.ndarray, rgb1: np.ndarray, rgb2: np.ndarray,
+                  years: tuple[int, int], title: str, n: int = 10, half: int = 40):
+    """The n largest error blobs of `mask`: crops of both years, blob outline yellow, other Hansen loss blue.
+    Returns (figure, info list); info rows are in the crop's (row, col) of the given arrays."""
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
+    from .change import components
+
+    blobs = components(mask)[:n]
+    fig, ax = plt.subplots(n // 2, 4, figsize=(12, 3.1 * (n // 2)), layout="constrained")
+    info = []
+    for k, (size, sl, blob) in enumerate(blobs):
+        cy, cx = (sl[0].start + sl[0].stop) // 2, (sl[1].start + sl[1].stop) // 2
+        ys, xs = slice(max(cy - half, 0), cy + half), slice(max(cx - half, 0), cx + half)
+        full = np.zeros(mask.shape, bool)
+        full[sl] = blob
+        main = pd.Series(cat[sl][blob]).value_counts().index[0]
+        for j, (r, yr) in enumerate(((rgb1, years[0]), (rgb2, years[1]))):
+            a = ax[k // 2, 2 * (k % 2) + j]
+            o = overlay(r[ys, xs], edges(full[ys, xs]), (1, 1, 0))
+            o = overlay(o, edges(true_loss[ys, xs]) & ~edges(full[ys, xs]), (0, 0.6, 1))
+            a.imshow(o)
+            a.set_xticks([]); a.set_yticks([])
+            a.set_title(f"#{k + 1} {yr}" + (f" | {size} px | {main}" if j == 0 else ""), fontsize=8)
+        info.append({"rank": k + 1, "pixels": size, "row": int(cy), "col": int(cx), "main_category": main})
+    fig.suptitle(f"{title}: yellow = error blob, blue = Hansen loss {years[0] + 1}-{years[1]} outline")
+    return fig, info
