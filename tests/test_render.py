@@ -78,3 +78,24 @@ def test_rgb_outside_footprint_transparent():
     a = np.asarray(_open(png))[..., 3]
     assert a[a.shape[0] // 2, a.shape[1] // 2] == 255
     assert any(a[r, c] == 0 for r in (0, -1) for c in (0, -1))
+
+
+def test_orientation_and_bounds_order():
+    # block in the north-west corner of the source: must land in the top-left of the PNG
+    mask = np.zeros((100, 100), bool)
+    mask[:30, :30] = True
+    png, ((s, w), (n, e)) = render.mask_png(mask, TF, CRS_UTM, (1, 2, 3))
+    assert s < n and w < e
+    a = np.asarray(_open(png))[..., 3] > 0
+    h, wd = a.shape
+    assert a[: h // 2, : wd // 2].any()
+    assert not a[h // 2 :, :].any() and not a[:, wd // 2 :].any()
+    # and rgb: a bright north-east block lands top-right
+    img = _img()
+    valid = np.zeros((100, 100), bool)
+    valid[:30, 70:] = True
+    rgb_png, _ = render.rgb_png(img, valid, TF, CRS_UTM)
+    b = np.asarray(_open(rgb_png))[..., 3] > 0
+    h, wd = b.shape
+    assert b[: h // 2, wd // 2 :].any()
+    assert not b[h // 2 :, :].any() and not b[:, : wd // 2].any()
