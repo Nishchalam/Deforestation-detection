@@ -1,0 +1,49 @@
+{
+  "bands": [
+    "B2",
+    "B3",
+    "B4",
+    "B8",
+    "B11",
+    "B12"
+  ],
+  "mean": [
+    1006.2280883789062,
+    942.2350463867188,
+    836.3738403320312,
+    2436.5,
+    2314.569091796875,
+    1151.009521484375
+  ],
+  "std": [
+    104.9239501953125,
+    148.61741638183594,
+    290.95263671875,
+    365.1941833496094,
+    779.3130493164062,
+    513.0828857421875
+  ],
+  "input_scale": "Sentinel-2 L1C reflectance x 1e4 (COPERNICUS/S2_HARMONIZED), median composite",
+  "encoder": "resnet18",
+  "tile_px": 256,
+  "forest_threshold_logit": 0.0,
+  "change_threshold": 0.7,
+  "change_mmu_px": 25,
+  "files": {
+    "forest": {
+      "name": "forest_unet.onnx",
+      "sha256": "0893adedde0b6f0a031d82860d97b2eb35fc9143397e041de47a547797ed49ac"
+    },
+    "change": {
+      "name": "change_unet.onnx",
+      "sha256": "466fc522cc5a66b7f790c5edc8a69232c7a35ca033ba020f32ab8d6ff94453de"
+    }
+  },
+  "trained_on": "Ariquemes, Rondonia, Brazil; bbox [-63.0,-10.5,-62.8,-10.3]; 2018 vs 2022 dry-season composites",
+  "labels": "Hansen GFC treecover2000 >= 30 minus lossyear (see configs/ariquemes.yaml)",
+  "source_commit": "3135742",
+  "torch_checkpoints": [
+    "unet_imagenet/best.pt",
+    "unet_change/best.pt"
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "forest": {
+    "tiles": 18,
+    "max_abs_logit_diff": 1.1801719665527344e-05,
+    "mean_abs_logit_diff": 1.0981927971442929e-06,
+    "mask_pixels_differing": 0,
+    "pixels": 1179648
+  },
+  "change": {
+    "tiles": 9,
+    "max_abs_logit_diff": 7.390975952148438e-05,
+    "mean_abs_logit_diff": 1.7826823750510812e-06,
+    "mask_pixels_differing": 0,
+    "pixels": 589824
+  },
+  "pipeline_test_block": {
+    "torch": {
+      "pixel_area_ha": 0.01,
+      "valid_ha": 5898.24,
+      "forest_before_ha": 2285.29,
+      "forest_after_ha": 2140.05,
+      "loss_ha": 125.58,
+      "loss_pixels": 12558,
+      "change_threshold": 0.7,
+      "change_mmu_px": 25
+    },
+    "onnx": {
+      "pixel_area_ha": 0.01,
+      "valid_ha": 5898.24,
+      "forest_before_ha": 2285.29,
+      "forest_after_ha": 2140.05,
+      "loss_ha": 125.58,
+      "loss_pixels": 12558,
+      "change_threshold": 0.7,
+      "change_mmu_px": 25
+    }
+  },
+  "tolerance": 0.0001,
+  "passed": true,
+  "onnx_sha256": {
+    "forest": "0893adedde0b6f0a031d82860d97b2eb35fc9143397e041de47a547797ed49ac",
+    "change": "466fc522cc5a66b7f790c5edc8a69232c7a35ca033ba020f32ab8d6ff94453de"
+  }
+}
