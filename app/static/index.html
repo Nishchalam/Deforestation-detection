@@ -1,1 +1,671 @@
-<!doctype html><title>Deforestation explorer</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deforestation explorer</title>
+<meta name="description" content="Draw a box on a satellite map, pick two years, and compare a deep-learning forest-loss estimate with the Hansen Global Forest Change reference.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+      integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"
+      integrity="sha384-NZLkVuBRMEeB4VeZz27WwTRvlhec30biQ8Xx7zG7JJnkvEKRg5qi6BNbEXo9ydwv" crossorigin="anonymous">
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f4f3ee;
+  --surface: #ffffff;
+  --surface-2: #eceae2;
+  --text: #1c2822;
+  --muted: #55625b;
+  --border: #cfd3c8;
+  --accent: #1d6b47;
+  --accent-text: #ffffff;
+  --danger: #b3261e;
+  --warn-bg: #fff1c7;
+  --warn-text: #4a3500;
+  --warn-border: #d9b44a;
+  --focus: #1a5fb4;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131916;
+    --surface: #1b231f;
+    --surface-2: #26302b;
+    --text: #e4eae6;
+    --muted: #a3b0a8;
+    --border: #36423b;
+    --accent: #55c08a;
+    --accent-text: #08170f;
+    --danger: #ff8f86;
+    --warn-bg: #3a2f0c;
+    --warn-text: #fbe7a6;
+    --warn-border: #7a6420;
+    --focus: #8ab8ff;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 var(--font);
+  display: flex;
+  flex-direction: column;
+}
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.banner {
+  flex: none;
+  margin: 0;
+  padding: 8px 16px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-bottom: 1px solid var(--warn-border);
+  font-size: 14px;
+  font-weight: 600;
+}
+.layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 400px; }
+#map { height: 100%; min-height: 320px; background: var(--surface-2); }
+.panel {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+}
+.panel h1 { font-size: 20px; margin: 0 0 4px; }
+.panel h2 { font-size: 15px; margin: 0 0 8px; }
+.lede { margin: 0 0 12px; color: var(--muted); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+label, .label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+select, input[type="number"], button {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  min-height: 36px;
+}
+select { width: 100%; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.row > * { flex: 1 1 0; min-width: 0; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+button.primary {
+  width: 100%;
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  font-weight: 700;
+  min-height: 42px;
+}
+button.secondary { flex: 1 1 auto; }
+.muted { color: var(--muted); font-size: 13px; }
+.readout { font-size: 18px; font-weight: 700; margin: 6px 0 2px; }
+.readout.over { color: var(--danger); }
+.bboxline { font-variant-numeric: tabular-nums; }
+details { margin: 8px 0 0; }
+summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+.coords { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.coords input { width: 100%; }
+.error { color: var(--danger); font-weight: 600; white-space: pre-wrap; overflow-wrap: anywhere; }
+.status { margin: 10px 0 0; }
+progress { width: 100%; height: 10px; accent-color: var(--accent); }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 4px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+td { text-align: right; font-variant-numeric: tabular-nums; padding-left: 8px; }
+tr:last-child th, tr:last-child td { border-bottom: 0; }
+th { font-weight: 500; }
+tr.sub th { padding-left: 14px; color: var(--muted); }
+
+.layer { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-weight: 400; font-size: 14px; margin: 0; }
+.layer input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.swatch { flex: none; width: 16px; height: 16px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, 0.45); }
+.swatch.rgb { background: linear-gradient(135deg, #2f5a2c, #8a7a52 55%, #bfb6a0); }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.howto ul { margin: 6px 0 0; padding-left: 18px; }
+.howto li { margin-bottom: 4px; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+footer { font-size: 13px; color: var(--muted); padding: 4px 0 8px; }
+footer p { margin: 0 0 6px; }
+[hidden] { display: none !important; }
+
+@media (max-width: 799px) {
+  body { display: block; height: auto; }
+  .layout { display: block; }
+  #map { height: 55vh; min-height: 300px; }
+  .panel { overflow: visible; border-left: 0; border-top: 1px solid var(--border); padding: 12px 16px 16px; }
+}
+</style>
+</head>
+<body>
+<p class="banner" role="note">Model trained only on Ariquemes, Rondônia (Brazil), 2018 vs 2022. Accuracy elsewhere is unmeasured — compare with the Hansen layer.</p>
+
+<div class="layout">
+  <div id="map" role="region" aria-label="Satellite map. Draw a rectangle to choose an area, or enter coordinates in the side panel."></div>
+
+  <main class="panel">
+    <h1>Deforestation explorer</h1>
+    <p class="lede">Draw a box on the map, choose two years, and run the model. It compares forest cover between the two Sentinel-2 seasons and checks the result against Hansen data.</p>
+
+    <section class="card" aria-labelledby="h-area">
+      <h2 id="h-area">1. Area</h2>
+      <label for="example">Example area</label>
+      <select id="example"><option value="">Choose an example…</option></select>
+      <p class="muted" id="exNote" aria-live="polite"></p>
+
+      <div class="row">
+        <button type="button" id="drawBtn" class="secondary">Draw a box</button>
+        <button type="button" id="clearBtn" class="secondary">Clear box</button>
+      </div>
+      <p class="muted" style="margin-top:0">Click the corner of the box, drag, and release. Tools on the map can resize or delete it.</p>
+      <div class="readout" id="area">No box drawn</div>
+      <div class="muted bboxline" id="bboxLine"></div>
+      <div class="muted" id="limitLine"></div>
+
+      <details>
+        <summary>Enter coordinates instead</summary>
+        <div class="coords">
+          <div><label for="cw">West (°)</label><input type="number" id="cw" step="0.001" min="-180" max="180"></div>
+          <div><label for="ce">East (°)</label><input type="number" id="ce" step="0.001" min="-180" max="180"></div>
+          <div><label for="cs">South (°)</label><input type="number" id="cs" step="0.001" min="-90" max="90"></div>
+          <div><label for="cn">North (°)</label><input type="number" id="cn" step="0.001" min="-90" max="90"></div>
+        </div>
+        <button type="button" id="applyCoords" style="margin-top:8px">Use these coordinates</button>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="h-time">
+      <h2 id="h-time">2. Years and season</h2>
+      <div class="row">
+        <div><label for="start">Start year</label><select id="start"></select></div>
+        <div><label for="end">End year</label><select id="end"></select></div>
+      </div>
+      <div class="row">
+        <div><label for="m1">Season from</label><select id="m1"></select></div>
+        <div><label for="m2">Season to</label><select id="m2"></select></div>
+      </div>
+      <p class="muted" style="margin:0">Cloud-free Sentinel-2 images from the chosen months are combined for each year. June to September is the dry season in the Amazon.</p>
+    </section>
+
+    <section class="card" aria-labelledby="h-run">
+      <h2 id="h-run">3. Run</h2>
+      <button type="button" id="run" class="primary" disabled>Run analysis</button>
+      <p class="muted" id="runHint" role="status" style="margin-bottom:0">Loading server status…</p>
+      <div class="status" id="statusBox" hidden>
+        <progress id="bar" max="100" aria-label="Job progress"></progress>
+        <div id="statusText" role="status"></div>
+      </div>
+      <div class="error" id="errorBox" role="alert" hidden></div>
+      <p class="muted" id="eeLine" style="margin-bottom:0"></p>
+    </section>
+
+    <section id="results" class="card" aria-labelledby="h-res" hidden>
+      <h2 id="h-res">Results</h2>
+      <p class="muted" id="reqLine"></p>
+      <table id="stats"><tbody></tbody></table>
+      <p class="muted" id="hansenNote" hidden></p>
+
+      <h2 style="margin-top:16px">Map layers</h2>
+      <div id="layers"></div>
+      <label for="opacity" style="margin-top:8px">Layer opacity: <span id="opacityVal">100%</span></label>
+      <input type="range" id="opacity" min="10" max="100" step="5" value="100">
+      <p style="margin:12px 0 0"><a id="download" href="#" download>Download GeoTIFFs</a>
+        <span class="muted">(zip of the masks plus stats.json)</span></p>
+    </section>
+
+    <section class="card howto" aria-labelledby="h-how">
+      <h2 id="h-how">How to read this</h2>
+      <ul>
+        <li><strong>Forest</strong> is the model's forest mask for that year.</li>
+        <li><strong>Loss (model)</strong> is forest in the start year that is not forest in the end year, from the change model.</li>
+        <li><strong>Hansen</strong> is the Global Forest Change reference: tree cover 2000 of at least 30% with a recorded loss year in the chosen range. It is a reference, not ground truth.</li>
+        <li><strong>Agreement</strong> (F1, IoU, precision, recall) compares the model's loss pixels with Hansen's. Neither is ground truth, so differences can come from either source.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <label class="label" for="labelsToggle" style="display:flex;gap:8px;align-items:center;font-weight:400;margin:0">
+        <input type="checkbox" id="labelsToggle" checked style="width:18px;height:18px;margin:0;accent-color:var(--accent)">
+        Show place names on the map
+      </label>
+    </section>
+
+    <footer>
+      <p><a href="https://github.com/Nishchalam/Deforestation-detection" rel="noopener">Source code on GitHub</a> ·
+        <a href="https://glad.earthengine.app/view/global-forest-change" rel="noopener">Hansen Global Forest Change dataset</a></p>
+      <p>Hansen et al. 2013, <em>High-resolution global maps of 21st-century forest cover change</em>, Science 342. Imagery: Copernicus Sentinel-2 via Google Earth Engine. Basemap: Esri.</p>
+      <p id="modelLine"></p>
+    </footer>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+        integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"
+        integrity="sha384-JP5UPxIO2Tm2o79Fb0tGYMa44jkWar53aBoCbd8ah0+LcCDoohTIYr+zIXyfGIJN" crossorigin="anonymous"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+                       'September', 'October', 'November', 'December'];
+  const POLL_MS = 3000;
+  const R_KM = 6371.0072;  // authalic Earth radius: the spherical formula below is close to the server's ellipsoid value
+
+  // Overlay colours: keep in step with LAYER_COLORS in app/render.py (RGB 0-255).
+  const COLORS = { loss: [230, 30, 30], hansen_loss: [255, 200, 0], forest: [34, 139, 34] };
+  const rgb = (c) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+  const LAYER_DEFS = [  // listed top-most first; z is the stacking order on the map
+    { key: 'loss', label: () => 'Loss (model)', color: COLORS.loss, z: 500, on: true },
+    { key: 'hansen_loss', label: () => 'Loss (Hansen reference)', color: COLORS.hansen_loss, z: 450 },
+    { key: 'forest_after', label: (r) => `Forest ${r.end} (model)`, color: COLORS.forest, z: 400 },
+    { key: 'forest_before', label: (r) => `Forest ${r.start} (model)`, color: COLORS.forest, z: 390 },
+    { key: 'after_rgb', label: (r) => `Sentinel-2 image ${r.end} (large)`, color: null, z: 300 },
+    { key: 'before_rgb', label: (r) => `Sentinel-2 image ${r.start} (large)`, color: null, z: 290 },
+  ];
+
+  const state = { max: 500, bbox: null, ee: false, healthOk: false, running: false, jobId: null,
+                  timer: null, overlays: {}, health: null };
+
+  // ---------------------------------------------------------------- helpers
+  const fmtInt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+  const fmt1 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
+  const fmt3 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  const isNum = (v) => typeof v === 'number' && isFinite(v);
+  const ha = (v) => (!isNum(v) ? 'n/a' : (Math.abs(v) < 100 ? fmt1 : fmtInt).format(v) + ' ha');
+  const score = (v) => (isNum(v) ? fmt3.format(v) : 'n/a');
+
+  function areaKm2(b) {  // exact area of a lon/lat rectangle on a sphere
+    const rad = Math.PI / 180;
+    const dl = (b[2] - b[0]) * rad;
+    return R_KM * R_KM * Math.abs(dl) * Math.abs(Math.sin(b[3] * rad) - Math.sin(b[1] * rad));
+  }
+  const fmtKm = (km2) => (km2 < 10 ? km2.toFixed(2) : km2 < 1000 ? km2.toFixed(1) : fmtInt.format(km2)) + ' km²';
+
+  function detailText(d) {  // FastAPI: string, or a list of {msg, ...} for malformed bodies
+    if (typeof d === 'string') return d;
+    if (Array.isArray(d)) return d.map((x) => (x && x.msg) || JSON.stringify(x)).join('; ');
+    return d == null ? '' : JSON.stringify(d);
+  }
+  async function errorOf(resp) {
+    let msg = `${resp.status} ${resp.statusText}`;
+    try { const j = await resp.json(); if (j && j.detail != null) msg = detailText(j.detail); } catch (e) { /* keep status */ }
+    return msg;
+  }
+  const norm = (v) => Math.round(v * 10000) / 10000;
+
+  // ---------------------------------------------------------------- map
+  // leaflet-draw 1.0.4 formats its drawing tooltip with a helper that has a strict-mode bug; use our own.
+  if (L.GeometryUtil) L.GeometryUtil.readableArea = (m2) => fmtKm(m2 / 1e6);
+
+  const map = L.map('map', { center: [-8, -62], zoom: 5, maxZoom: 17, worldCopyJump: true });
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 17,
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+  }).addTo(map);
+  map.createPane('labels');
+  map.getPane('labels').style.zIndex = 650;
+  map.getPane('labels').style.pointerEvents = 'none';
+  const labelLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    pane: 'labels', maxZoom: 17, attribution: 'Labels &copy; Esri',
+  }).addTo(map);
+  $('labelsToggle').addEventListener('change', (e) => {
+    if (e.target.checked) labelLayer.addTo(map); else map.removeLayer(labelLayer);
+  });
+
+  const drawn = new L.FeatureGroup().addTo(map);
+  map.addControl(new L.Control.Draw({
+    draw: { polyline: false, polygon: false, circle: false, marker: false, circlemarker: false,
+            rectangle: { showArea: true, metric: true, shapeOptions: { color: '#2f9e6a', weight: 2, fillOpacity: 0.08 } } },
+    edit: { featureGroup: drawn },
+  }));
+  let drawer = null;
+
+  function boundsToBbox(b) {  // Leaflet bounds -> [w, s, e, n], wrapped into [-180, 180] and clamped
+    let w = b.getWest(), e = b.getEast();
+    const shift = Math.round((w + e) / 2 / 360) * 360;
+    w -= shift; e -= shift;
+    const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    return [norm(cl(w, -180, 180)), norm(cl(b.getSouth(), -90, 90)), norm(cl(e, -180, 180)), norm(cl(b.getNorth(), -90, 90))];
+  }
+  const bboxToBounds = (b) => L.latLngBounds([b[1], b[0]], [b[3], b[2]]);
+
+  function showArea(bbox, live) {
+    const el = $('area');
+    if (!bbox) {
+      el.textContent = 'No box drawn'; el.classList.remove('over');
+      $('bboxLine').textContent = ''; $('limitLine').textContent = '';
+      return;
+    }
+    const km2 = areaKm2(bbox), over = km2 > state.max;
+    el.textContent = (live ? 'Drawing: ' : 'Area: ') + fmtKm(km2);
+    el.classList.toggle('over', over);
+    $('bboxLine').textContent = `W ${bbox[0]}, S ${bbox[1]}, E ${bbox[2]}, N ${bbox[3]}`;
+    $('limitLine').textContent = over ? `Too large: the limit is ${fmtInt.format(state.max)} km². Draw a smaller box.`
+                                      : `Limit: ${fmtInt.format(state.max)} km².`;
+    $('limitLine').style.color = over ? 'var(--danger)' : '';
+    $('limitLine').style.fontWeight = over ? '600' : '';
+  }
+
+  function setBbox(bbox, opts) {  // opts.draw: (re)create the rectangle; opts.fit: zoom to it
+    opts = opts || {};
+    state.bbox = bbox;
+    if (bbox) {
+      if (opts.draw) {
+        drawn.clearLayers();
+        L.rectangle(bboxToBounds(bbox), { color: '#2f9e6a', weight: 2, fillOpacity: 0.08 }).addTo(drawn);
+      }
+      if (opts.fit) map.fitBounds(bboxToBounds(bbox), { padding: [30, 30] });
+      [$('cw'), $('cs'), $('ce'), $('cn')].forEach((el, i) => { el.value = bbox[i]; });
+    } else if (opts.draw) {
+      drawn.clearLayers();
+    }
+    drawn.eachLayer((l) => l.setStyle && l.setStyle({ color: bbox && areaKm2(bbox) > state.max ? '#e5484d' : '#2f9e6a' }));
+    showArea(bbox, false);
+    updateRun();
+  }
+
+  map.on(L.Draw.Event.DRAWSTART, () => {
+    state.drawing = true;
+  });
+  map.on('mousemove', () => {  // live readout while the rectangle is being dragged
+    if (!state.drawing || !drawer || !drawer._shape) return;
+    try { showArea(boundsToBbox(drawer._shape.getBounds()), true); } catch (e) { /* tooltip still shows the area */ }
+  });
+  map.on(L.Draw.Event.DRAWSTOP, () => { state.drawing = false; drawer = null; showArea(state.bbox, false); });
+  map.on(L.Draw.Event.CREATED, (e) => {
+    drawn.clearLayers();
+    drawn.addLayer(e.layer);
+    $('exNote').textContent = '';
+    setBbox(boundsToBbox(e.layer.getBounds()), {});
+  });
+  map.on(L.Draw.Event.EDITRESIZE, (e) => showArea(boundsToBbox(e.layer.getBounds()), true));
+  map.on(L.Draw.Event.EDITED, () => {
+    let b = null;
+    drawn.eachLayer((l) => { b = boundsToBbox(l.getBounds()); });
+    setBbox(b, {});
+  });
+  map.on(L.Draw.Event.DELETED, () => { if (!drawn.getLayers().length) setBbox(null, {}); });
+
+  $('drawBtn').addEventListener('click', () => {
+    if (drawer) drawer.disable();
+    drawer = new L.Draw.Rectangle(map, { showArea: true, metric: true, shapeOptions: { color: '#2f9e6a', weight: 2, fillOpacity: 0.08 } });
+    drawer.enable();
+  });
+  $('clearBtn').addEventListener('click', () => { if (drawer) drawer.disable(); setBbox(null, { draw: true }); });
+  $('applyCoords').addEventListener('click', () => {
+    const [w, s, e, n] = ['cw', 'cs', 'ce', 'cn'].map((id) => parseFloat($(id).value));
+    if (![w, s, e, n].every(isFinite) || !(w < e) || !(s < n) || w < -180 || e > 180 || s < -90 || n > 90) {
+      showError('Coordinates must be numbers with west < east, south < north, within ±180° and ±90°.');
+      return;
+    }
+    hideError();
+    $('exNote').textContent = '';
+    setBbox([norm(w), norm(s), norm(e), norm(n)], { draw: true, fit: true });
+  });
+
+  // ---------------------------------------------------------------- form
+  function fillSelect(sel, values, label, selected) {
+    sel.textContent = '';
+    values.forEach((v) => {
+      const o = document.createElement('option');
+      o.value = String(v); o.textContent = label ? label(v) : String(v);
+      if (v === selected) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+  fillSelect($('m1'), [...Array(12).keys()].map((i) => i + 1), (m) => MONTH_NAMES[m - 1], 6);
+  fillSelect($('m2'), [...Array(12).keys()].map((i) => i + 1), (m) => MONTH_NAMES[m - 1], 9);
+
+  function setYears(start, end) {
+    const has = (sel, y) => [...sel.options].some((o) => o.value === String(y));
+    if (has($('start'), start)) $('start').value = String(start);
+    if (has($('end'), end)) $('end').value = String(end);
+    updateRun();
+  }
+  const inputs = () => ({ start: +$('start').value, end: +$('end').value, m1: +$('m1').value, m2: +$('m2').value });
+  ['start', 'end', 'm1', 'm2'].forEach((id) => $(id).addEventListener('change', updateRun));
+
+  function problem() {  // why Run is disabled, or '' when it is not
+    if (!state.healthOk) return 'The server did not answer. Reload the page to try again.';
+    if (!state.ee) return 'Earth Engine is not ready on the server (see below), so analysis is unavailable.';
+    if (state.running) return 'A job is in progress.';
+    if (!state.bbox) return 'Draw a box on the map or choose an example area to begin.';
+    if (areaKm2(state.bbox) > state.max) return `The box is larger than ${fmtInt.format(state.max)} km². Draw a smaller one.`;
+    const v = inputs();
+    if (v.start >= v.end) return 'The start year must be before the end year.';
+    if (v.m1 > v.m2) return 'The first month of the season must not come after the last month.';
+    return '';
+  }
+  function updateRun() {
+    const p = problem();
+    $('run').disabled = !!p;
+    $('runHint').textContent = p || 'Ready. A first run downloads imagery from Earth Engine and can take a few minutes.';
+  }
+
+  function showError(text) { const b = $('errorBox'); b.textContent = text; b.hidden = false; }
+  function hideError() { $('errorBox').hidden = true; $('errorBox').textContent = ''; }
+
+  // ---------------------------------------------------------------- health + examples
+  async function loadHealth() {
+    try {
+      const r = await fetch('/health');
+      if (!r.ok) throw new Error(await errorOf(r));
+      const h = await r.json();
+      state.health = h; state.healthOk = true; state.ee = !!h.earth_engine;
+      state.max = h.max_area_km2 || state.max;
+      if (!$('start').options.length) {
+        const [y0, y1] = h.years;
+        const years = []; for (let y = y0; y <= y1; y++) years.push(y);
+        const end = Math.min(2022, y1), start = Math.min(2018, end - 1);
+        fillSelect($('start'), years, null, Math.max(start, y0));
+        fillSelect($('end'), years, null, end);
+        loadExamples();
+      }
+      $('eeLine').textContent = state.ee ? '' : `Earth Engine is not ready: ${h.earth_engine_detail}`;
+      $('eeLine').style.color = state.ee ? '' : 'var(--danger)';
+      const q = h.queue || {};
+      $('modelLine').textContent = `Model release ${h.model.release}. Server jobs in use: ${q.active} of ${q.max}.`;
+      showArea(state.bbox, false);
+    } catch (e) {
+      state.healthOk = false;
+      $('eeLine').textContent = `Cannot reach the server: ${e.message}`;
+      $('eeLine').style.color = 'var(--danger)';
+    }
+    updateRun();
+    if (!state.ee) setTimeout(loadHealth, 30000);  // Earth Engine may come up later
+  }
+
+  let examples = [];
+  async function loadExamples() {
+    try {
+      const r = await fetch('/static/examples.json');
+      if (!r.ok) return;
+      examples = await r.json();
+      examples.forEach((ex, i) => {
+        const o = document.createElement('option');
+        o.value = String(i); o.textContent = ex.name;
+        $('example').appendChild(o);
+      });
+    } catch (e) { /* the dropdown simply stays empty */ }
+  }
+  $('example').addEventListener('change', (e) => {
+    const ex = examples[+e.target.value];
+    $('exNote').textContent = ex ? ex.note || '' : '';
+    if (!ex) return;
+    setBbox(ex.bbox.map(Number), { draw: true, fit: true });
+    setYears(ex.start, ex.end);
+    hideError();
+  });
+
+  // ---------------------------------------------------------------- running a job
+  function clearResults() {
+    Object.values(state.overlays).forEach((o) => map.removeLayer(o));
+    state.overlays = {};
+    $('results').hidden = true;
+    $('layers').textContent = '';
+    $('stats').tBodies[0].textContent = '';
+  }
+  function setStatus(text, pct) {
+    $('statusBox').hidden = false;
+    $('statusText').textContent = text;
+    const bar = $('bar');
+    if (pct == null) bar.removeAttribute('value'); else bar.value = pct;
+  }
+  function finish() {
+    state.running = false;
+    clearTimeout(state.timer);
+    updateRun();
+    if (state.ee) loadHealth();  // refresh the queue count
+  }
+
+  $('run').addEventListener('click', async () => {
+    const v = inputs();
+    if (problem()) return;
+    hideError(); clearResults();
+    state.running = true; updateRun();
+    setStatus('Submitting…', null);
+    try {
+      const r = await fetch('/predict-area', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bbox: state.bbox, start: v.start, end: v.end, months: [v.m1, v.m2] }),
+      });
+      if (!r.ok) throw new Error(await errorOf(r));
+      const { job_id } = await r.json();
+      state.jobId = job_id;
+      poll(job_id, 0);
+    } catch (e) {
+      $('statusBox').hidden = true;
+      showError(e.message);
+      finish();
+    }
+  });
+
+  async function poll(id, failures) {
+    if (state.jobId !== id) return;
+    try {
+      const r = await fetch('/jobs/' + encodeURIComponent(id));
+      if (!r.ok) throw Object.assign(new Error(await errorOf(r)), { fatal: r.status === 404 });
+      const j = await r.json();
+      if (j.status === 'queued') {
+        const pos = j.position;
+        setStatus(`Queued${pos ? ` — position ${pos} in the queue` : ''}. Waiting for the server to be free.`, null);
+      } else if (j.status === 'running') {
+        const pct = Math.round(100 * (j.progress || 0));
+        setStatus(`${j.message || 'Running'} — ${pct}%`, pct);
+      } else if (j.status === 'done') {
+        $('statusBox').hidden = true;
+        showResults(j.result);
+        finish();
+        return;
+      } else if (j.status === 'error') {
+        $('statusBox').hidden = true;
+        showError(j.error || 'The job failed.');
+        finish();
+        return;
+      }
+      failures = 0;
+    } catch (e) {
+      failures += 1;
+      if (e.fatal || failures >= 4) {
+        $('statusBox').hidden = true;
+        showError(e.message);
+        finish();
+        return;
+      }
+      setStatus(`Connection problem, retrying (${failures})…`, null);
+    }
+    state.timer = setTimeout(() => poll(id, failures), POLL_MS);
+  }
+
+  // ---------------------------------------------------------------- results
+  function addRow(tb, label, value, sub) {
+    const tr = document.createElement('tr');
+    if (sub) tr.className = 'sub';
+    const th = document.createElement('th'); th.scope = 'row'; th.textContent = label;
+    const td = document.createElement('td'); td.textContent = value;
+    tr.append(th, td); tb.appendChild(tr);
+  }
+
+  function showResults(res) {
+    const s = res.stats, req = s.request || {};
+    const r = { start: req.start, end: req.end };
+    const m = req.months || [];
+    $('reqLine').textContent = `${r.start} → ${r.end}` +
+      (m.length === 2 ? `, months ${MONTH_NAMES[m[0] - 1]}–${MONTH_NAMES[m[1] - 1]}` : '');
+    const tb = $('stats').tBodies[0];
+    tb.textContent = '';
+    addRow(tb, `Forest ${r.start} (model)`, ha(s.forest_before_ha));
+    addRow(tb, `Forest ${r.end} (model)`, ha(s.forest_after_ha));
+    addRow(tb, 'Loss (model)', ha(s.loss_ha));
+    addRow(tb, 'Loss as share of forest', isNum(s.loss_pct_of_forest) ? s.loss_pct_of_forest.toFixed(1) + '%' : 'n/a', true);
+    addRow(tb, 'Valid area analysed', ha(s.valid_ha));
+    const co = s.clear_obs_median || {};
+    addRow(tb, 'Median clear images per pixel (start / end)', `${isNum(co.before) ? fmt1.format(co.before) : 'n/a'} / ${isNum(co.after) ? fmt1.format(co.after) : 'n/a'}`);
+    const hn = $('hansenNote');
+    if (s.hansen) {
+      addRow(tb, 'Loss (Hansen reference)', ha(s.hansen.loss_ha));
+      const a = s.hansen.agreement || {};
+      addRow(tb, 'Agreement with Hansen: F1', score(a.f1));
+      addRow(tb, 'IoU', score(a.iou), true);
+      addRow(tb, 'Precision', score(a.precision), true);
+      addRow(tb, 'Recall', score(a.recall), true);
+      hn.textContent = `Reference asset: ${s.hansen.asset}. A score shows n/a when it is undefined.`;
+      hn.hidden = false;
+    } else {
+      hn.textContent = `Hansen data not available for ${r.end}. The model result is shown without a reference.`;
+      hn.hidden = false;
+    }
+    $('download').href = res.download;
+
+    // layer toggles
+    const box = $('layers'); box.textContent = '';
+    const opacity = +$('opacity').value / 100;
+    LAYER_DEFS.forEach((d) => {
+      const info = res.layers[d.key];
+      if (!info) return;
+      const ov = L.imageOverlay(info.url, info.bounds, { opacity, zIndex: d.z, interactive: false, alt: '' });
+      state.overlays[d.key] = ov;
+      const lab = document.createElement('label'); lab.className = 'layer';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!d.on;
+      const sw = document.createElement('span'); sw.className = 'swatch' + (d.color ? '' : ' rgb');
+      if (d.color) sw.style.background = rgb(d.color);
+      sw.setAttribute('aria-hidden', 'true');
+      lab.append(cb, sw, document.createTextNode(d.label(r)));
+      cb.addEventListener('change', () => { if (cb.checked) ov.addTo(map); else map.removeLayer(ov); });
+      box.appendChild(lab);
+      if (d.on) ov.addTo(map);
+    });
+    $('results').hidden = false;
+    const anyLayer = Object.values(res.layers)[0];
+    if (anyLayer) map.fitBounds(anyLayer.bounds, { padding: [20, 20] });
+    $('results').scrollIntoView({ block: 'nearest' });
+  }
+
+  $('opacity').addEventListener('input', (e) => {
+    const v = +e.target.value;
+    $('opacityVal').textContent = v + '%';
+    Object.values(state.overlays).forEach((o) => o.setOpacity(v / 100));
+  });
+
+  loadHealth();
+  showArea(null, false);
+})();
+</script>
+</body>
+</html>

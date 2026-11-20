@@ -1,0 +1,12 @@
+[
+  {"name": "Ariquemes, Rondônia, Brazil", "bbox": [-63.0, -10.5, -62.8, -10.3], "start": 2018, "end": 2022,
+   "note": "training area"},
+  {"name": "Novo Progresso, Pará, Brazil (BR-163)", "bbox": [-55.1, -7.96, -54.92, -7.78], "start": 2018, "end": 2022,
+   "note": "Hansen loss 2019–2022: 22,760 ha"},
+  {"name": "Lábrea, Amazonas, Brazil", "bbox": [-64.43, -7.57, -64.25, -7.39], "start": 2018, "end": 2022,
+   "note": "Hansen loss 2019–2022: 5,758 ha"},
+  {"name": "Acre, Brazil", "bbox": [-68.39, -9.28, -68.21, -9.1], "start": 2018, "end": 2022,
+   "note": "Hansen loss 2019–2022: 8,005 ha"},
+  {"name": "Chiquitania, Santa Cruz, Bolivia", "bbox": [-62.33, -15.94, -62.15, -15.76], "start": 2018, "end": 2022,
+   "note": "Hansen loss 2019–2022: 17,122 ha"}
+]

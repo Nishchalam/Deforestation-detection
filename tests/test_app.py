@@ -93,8 +93,14 @@ def test_health(tmp_path):
 
 def test_index_and_static(tmp_path):
     with _client(tmp_path) as c:
-        assert "Deforestation explorer" in c.get("/").text
+        page = c.get("/").text
+        assert "<title>Deforestation explorer</title>" in page
+        assert "Model trained only on Ariquemes, Rondônia (Brazil), 2018 vs 2022. " \
+               "Accuracy elsewhere is unmeasured — compare with the Hansen layer." in page
         assert c.get("/static/index.html").status_code == 200
+        examples = c.get("/static/examples.json").json()
+        assert examples[0]["note"] == "training area" and len(examples) == 5
+        assert all(set(e) == {"name", "bbox", "start", "end", "note"} for e in examples)
 
 
 def test_app_does_not_import_torch():
