@@ -5,7 +5,9 @@
   "selection": "MMU (and threshold for direct models) chosen on val tiles",
   "results": {
     "ndvi": {
+      "approach": "differencing",
       "mmu_px": 100,
+      "val_iou": 0.061544449970806395,
       "val_iou_by_mmu": {
         "0": 0.0484085517203549,
         "10": 0.05172036626144567,
@@ -50,12 +52,12 @@
         "precision": 0.1906535032282308,
         "recall": 0.4778253424657534,
         "accuracy": 0.9494917127821181
-      },
-      "approach": "differencing",
-      "val_iou": 0.061544449970806395
+      }
     },
     "random_forest": {
+      "approach": "differencing",
       "mmu_px": 50,
+      "val_iou": 0.1942533164529091,
       "val_iou_by_mmu": {
         "0": 0.13886872153653224,
         "10": 0.16913236445914193,
@@ -100,12 +102,12 @@
         "precision": 0.35387239486168115,
         "recall": 0.5684075342465753,
         "accuracy": 0.9709014892578125
-      },
-      "approach": "differencing",
-      "val_iou": 0.1942533164529091
+      }
     },
     "unet_imagenet": {
+      "approach": "differencing",
       "mmu_px": 50,
+      "val_iou": 0.09918549131324479,
       "val_iou_by_mmu": {
         "0": 0.09341539806249545,
         "10": 0.0949084412684234,
@@ -150,12 +152,12 @@
         "precision": 0.31313442017840665,
         "recall": 0.6101027397260274,
         "accuracy": 0.9657779269748263
-      },
-      "approach": "differencing",
-      "val_iou": 0.09918549131324479
+      }
     },
     "unet_scratch": {
+      "approach": "differencing",
       "mmu_px": 100,
+      "val_iou": 0.14070614759048272,
       "val_iou_by_mmu": {
         "0": 0.1262244612370557,
         "10": 0.12854139196749936,
@@ -200,9 +202,7 @@
         "precision": 0.27664559721011334,
         "recall": 0.43467465753424656,
         "accuracy": 0.9662984212239584
-      },
-      "approach": "differencing",
-      "val_iou": 0.14070614759048272
+      }
     },
     "rf_change": {
       "approach": "direct",

@@ -1,0 +1,15 @@
+{
+  "method": "random_forest",
+  "device": "cuda",
+  "pixels": 300000,
+  "trees": 200,
+  "fit_s": 9.4,
+  "feature_importances": {
+    "B2": 0.1153,
+    "B3": 0.2133,
+    "B4": 0.0849,
+    "B8": 0.0671,
+    "B11": 0.3067,
+    "B12": 0.2126
+  }
+}

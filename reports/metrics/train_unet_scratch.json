@@ -1,10 +1,15 @@
 {
-  "variant": "scratch",
+  "method": "unet_scratch",
+  "device": "cuda",
+  "kind": "forest",
+  "encoder": "resnet18",
   "encoder_weights": null,
+  "in_channels": 6,
   "best_epoch": 3,
   "best_val_iou": 0.6920056040053434,
   "epochs_run": 23,
-  "train_time_s": 28.6,
+  "train_time_s": 27.9,
+  "peak_gpu_mem_gb": 1.19,
   "config": {
     "encoder": "resnet18",
     "in_channels": 6,
@@ -20,6 +25,5 @@
     "repeats": 4,
     "amp": true,
     "num_workers": 4
-  },
-  "peak_gpu_mem_gb": 1.18
+  }
 }

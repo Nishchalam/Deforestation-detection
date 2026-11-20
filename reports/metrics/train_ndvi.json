@@ -1,0 +1,6 @@
+{
+  "method": "ndvi",
+  "device": "cuda",
+  "threshold": 0.52,
+  "val_iou": 0.5680666677043771
+}

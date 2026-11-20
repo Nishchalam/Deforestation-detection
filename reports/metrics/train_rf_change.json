@@ -1,0 +1,9 @@
+{
+  "method": "rf_change",
+  "device": "cuda",
+  "pixels": 300000,
+  "trees": 200,
+  "max_depth": 20,
+  "class_weight": "balanced_subsample",
+  "fit_s": 11.3
+}

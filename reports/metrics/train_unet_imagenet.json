@@ -1,10 +1,15 @@
 {
-  "variant": "imagenet",
+  "method": "unet_imagenet",
+  "device": "cuda",
+  "kind": "forest",
+  "encoder": "resnet18",
   "encoder_weights": "imagenet",
+  "in_channels": 6,
   "best_epoch": 20,
   "best_val_iou": 0.7025255159055352,
   "epochs_run": 40,
-  "train_time_s": 53.1,
+  "train_time_s": 48.6,
+  "peak_gpu_mem_gb": 1.07,
   "config": {
     "encoder": "resnet18",
     "in_channels": 6,
@@ -20,6 +25,5 @@
     "repeats": 4,
     "amp": true,
     "num_workers": 4
-  },
-  "peak_gpu_mem_gb": 1.07
+  }
 }

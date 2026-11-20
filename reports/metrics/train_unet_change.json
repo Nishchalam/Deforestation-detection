@@ -1,16 +1,30 @@
 {
-  "variant": "change",
+  "method": "unet_change",
+  "device": "cuda",
+  "kind": "change",
+  "encoder": "resnet18",
   "encoder_weights": "imagenet",
   "in_channels": 12,
   "best_epoch": 43,
-  "best_val_iou_at_0.5": 0.35781664016958137,
+  "best_val_iou": 0.35781664016958137,
   "epochs_run": 63,
-  "train_time_s": 94.8,
+  "train_time_s": 98.9,
+  "peak_gpu_mem_gb": 1.28,
   "config": {
-    "encoder_weights": "imagenet",
+    "encoder": "resnet18",
+    "in_channels": 6,
+    "variants": {
+      "imagenet": "imagenet",
+      "scratch": null
+    },
     "epochs": 80,
+    "batch_size": 16,
     "lr": 0.001,
+    "weight_decay": 0.0001,
     "patience": 20,
-    "repeats": 8
+    "repeats": 8,
+    "amp": true,
+    "num_workers": 4,
+    "encoder_weights": "imagenet"
   }
 }
