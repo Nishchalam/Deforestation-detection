@@ -2,7 +2,7 @@
 
 Per-pixel forest mapping for **Ariquemes, Rondônia, Brazil** (bbox −63.0, −10.5, −62.8, −10.3) in **2018 and 2022**, built on real Sentinel-2 imagery and labelled with [Hansen Global Forest Change](https://glad.earthengine.app/view/global-forest-change). Forest loss is defined as forest(2018) AND NOT forest(2022). Every number in this README is generated from `reports/metrics/*.json` by [`scripts/readme_tables.py`](scripts/readme_tables.py).
 
-> **Status: v2 is in progress on branch `v2-real-data`.** Data, labels, split, baselines, U-Nets and change detection run end to end via `scripts/` and [`notebooks/end_to_end.ipynb`](notebooks/end_to_end.ipynb). Deployment (ONNX, API, Docker) comes next. The v1 "deforestation" results (IoU 0.975) were computed on synthetic scenes stitched from EuroSAT tiles and have been removed (see [PR #2](https://github.com/Nishchalam/Deforestation-detection/pull/2)).
+> **Status: v2 is in progress on branch `v2-real-data`.** Data, labels, split, baselines, U-Nets and change detection run end to end via `scripts/` and [`notebooks/end_to_end.ipynb`](notebooks/end_to_end.ipynb). The ONNX model, API and Docker image are in [Deployment](#deployment). The v1 "deforestation" results (IoU 0.975) were computed on synthetic scenes stitched from EuroSAT tiles and have been removed (see [PR #2](https://github.com/Nishchalam/Deforestation-detection/pull/2)).
 
 ## Pipeline
 
@@ -16,7 +16,7 @@ flowchart LR
     T --> D2[direct change models:<br/>12-band U-Net, random forest]
     M -->|2018 AND NOT 2022| C[loss map, hectares,<br/>error analysis, PRODES check]
     D2 --> C
-    C --> D[ONNX + FastAPI + Docker<br/><i>next</i>]
+    C --> D[ONNX + FastAPI + Docker]
 ```
 
 ## Data
@@ -151,6 +151,18 @@ python scripts/predict.py --bbox -63.0 -10.5 -62.8 -10.3 --years 2018 2022 --out
 ```
 
 All settings are in [`configs/ariquemes.yaml`](configs/ariquemes.yaml). Data, imagery and weights are not committed.
+
+## Deployment
+
+The **explorer** is a web page and API that runs the exported U-Net on CPU. Draw an area on the map, or upload two composites, to get forest masks, a loss map and hectares next to Hansen. The model was trained only on Ariquemes, so accuracy elsewhere is unmeasured.
+
+```bash
+docker build -t deforest .
+docker run --rm -p 7860:7860 -e EE_PROJECT=<gcp-project> -e EE_SERVICE_ACCOUNT_KEY="$(cat key.json)" deforest
+# open http://localhost:7860 (the weights are downloaded from the GitHub release at start)
+```
+
+Earth Engine key, Hugging Face Space and API examples: [`docs/deploy.md`](docs/deploy.md).
 
 ## Design decisions
 
