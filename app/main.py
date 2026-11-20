@@ -57,6 +57,8 @@ class Settings:
     ort_threads: int = 2
     trusted_proxy_hops: int = 1  # proxies in front of the app; the client is this many entries from the right of X-Forwarded-For
     ee_retry_s: float = 60.0
+    max_jobs_per_ip_per_day: int = 10  # fresh jobs (each spends Earth Engine quota) per client address, rolling 24 h
+    max_jobs_per_day: int = 100  # fresh jobs over all clients, rolling 24 h
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -70,7 +72,9 @@ class Settings:
                    max_upload_mb=float(e("MAX_UPLOAD_MB", cls.max_upload_mb)),
                    ort_threads=int(e("ORT_THREADS", cls.ort_threads)),
                    trusted_proxy_hops=int(e("TRUSTED_PROXY_HOPS", cls.trusted_proxy_hops)),
-                   ee_retry_s=float(e("EE_RETRY_S", cls.ee_retry_s)))
+                   ee_retry_s=float(e("EE_RETRY_S", cls.ee_retry_s)),
+                   max_jobs_per_ip_per_day=int(e("MAX_JOBS_PER_IP_PER_DAY", cls.max_jobs_per_ip_per_day)),
+                   max_jobs_per_day=int(e("MAX_JOBS_PER_DAY", cls.max_jobs_per_day)))
 
 
 class AreaRequest(BaseModel):
@@ -216,7 +220,9 @@ def create_app(pipeline=None, fetch=area.fetch_inputs, ee_ready: Callable[[], tu
         return {"stats": stats, "layers": layers}
 
     queue = jobs.JobQueue(run_area_job, settings.max_queue, Path(cache_dir or settings.cache_dir),
-                          settings.cache_size, settings.job_timeout_s)
+                          settings.cache_size, settings.job_timeout_s,
+                          max_per_ip_per_day=settings.max_jobs_per_ip_per_day,
+                          max_per_day=settings.max_jobs_per_day, clock=clock)
 
     @asynccontextmanager
     async def lifespan(_app):

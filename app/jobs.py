@@ -11,6 +11,7 @@ import shutil
 import threading
 import time
 import uuid
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,6 +19,9 @@ from typing import Callable
 
 log = logging.getLogger(__name__)
 ACTIVE = ("queued", "running")
+DAY_S = 24 * 3600.0
+DAILY_LIMIT_MESSAGE = ("daily limit reached for this public demo; try tomorrow or run it locally "
+                       "- see the README")
 MAX_FINISHED_JOBS = 200  # finished jobs kept in memory (done ones can be reloaded from disk)
 
 Progress = Callable[[str, float], None]
@@ -49,8 +53,12 @@ class JobQueue:
     """`run(payload, out_dir, progress) -> result dict (JSON-serialisable)` is executed one job at a time.
     `progress(message, fraction)` updates the job and is where the timeout is enforced (between stages)."""
 
-    def __init__(self, run: Callable, max_queue: int, cache_dir: Path, cache_size: int, timeout_s: float = 1200.0):
+    def __init__(self, run: Callable, max_queue: int, cache_dir: Path, cache_size: int, timeout_s: float = 1200.0,
+                 max_per_ip_per_day: int | None = None, max_per_day: int | None = None,
+                 clock: Callable[[], float] = time.monotonic):
         self.run, self.max_queue, self.cache_size, self.timeout_s = run, max_queue, cache_size, timeout_s
+        self.max_per_ip_per_day, self.max_per_day, self.clock = max_per_ip_per_day, max_per_day, clock
+        self._fresh: deque[tuple[float, str]] = deque()  # (time, ip) of every fresh submit in the last 24 h
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self._jobs: dict[str, Job] = {}
@@ -110,7 +118,9 @@ class JobQueue:
                 raise Busy("you already have a request in progress; wait for it to finish")
             if len(active) >= self.max_queue:
                 raise Busy(f"the queue is full ({self.max_queue} requests); try again in a few minutes")
+            self._check_daily_limits(ip)
             job = Job(uuid.uuid4().hex, key, ip)
+            self._fresh.append((self.clock(), ip))
             self._register(job)
             self._pool.submit(self._work, job, payload)
             return job
@@ -119,6 +129,16 @@ class JobQueue:
         self._pool.shutdown(wait=False, cancel_futures=True)
 
     # ------------------------------------------------------------------ internals
+    def _check_daily_limits(self, ip: str) -> None:
+        """Rolling 24 h caps on fresh submits (they spend Earth Engine quota). Cache and in-flight hits never get
+        here, and neither does a request already refused for load reasons, so only real jobs are counted."""
+        while self._fresh and self.clock() - self._fresh[0][0] >= DAY_S:
+            self._fresh.popleft()
+        if self.max_per_day is not None and len(self._fresh) >= self.max_per_day:
+            raise Busy(DAILY_LIMIT_MESSAGE)
+        if self.max_per_ip_per_day is not None and sum(i == ip for _, i in self._fresh) >= self.max_per_ip_per_day:
+            raise Busy(DAILY_LIMIT_MESSAGE)
+
     def _register(self, job: Job) -> None:
         self._jobs[job.id] = job
         self._by_key[job.key] = job

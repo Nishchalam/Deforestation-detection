@@ -41,9 +41,9 @@ def _stub_fetch(hansen_last_year=2025, gate=None, started=None, error=None):
     return fetch
 
 
-def _client(tmp_path, fetch=None, ee=(True, "proj"), pipeline=None, **settings):
+def _client(tmp_path, fetch=None, ee=(True, "proj"), pipeline=None, clock=time.monotonic, **settings):
     app = main.create_app(pipeline=pipeline or _pipe(), fetch=fetch or _stub_fetch(), ee_ready=lambda: ee,
-                          cache_dir=tmp_path / "cache", settings=main.Settings(**settings))
+                          cache_dir=tmp_path / "cache", settings=main.Settings(**settings), clock=clock)
     return TestClient(app)
 
 
@@ -314,6 +314,83 @@ def test_per_ip_limit(tmp_path):
             assert c.post("/predict-area", json={**other, "start": 2019}, headers=h).status_code == 202
     finally:
         gate.set()
+
+
+def _shifted(i):
+    """The i-th distinct, valid request (the box slides 0.01 degree east each time)."""
+    return {**PAYLOAD, "bbox": [ARIQUEMES[0] + 0.01 * i, ARIQUEMES[1], ARIQUEMES[2] + 0.01 * i, ARIQUEMES[3]]}
+
+
+def test_daily_limit_per_ip(tmp_path):
+    now = [1000.0]
+    with _client(tmp_path, max_jobs_per_ip_per_day=2, clock=lambda: now[0]) as c:
+        h = {"X-Forwarded-For": "1.1.1.1"}
+        for i in range(2):
+            r = c.post("/predict-area", json=_shifted(i), headers=h)
+            assert r.status_code == 202
+            _wait(c, r.json()["job_id"])
+        r = c.post("/predict-area", json=_shifted(2), headers=h)
+        assert r.status_code == 429 and "daily limit" in r.json()["detail"] and "README" in r.json()["detail"]
+        # another address is unaffected, and so are cache hits of the limited address
+        assert c.post("/predict-area", json=_shifted(2), headers={"X-Forwarded-For": "2.2.2.2"}).status_code == 202
+        assert c.post("/predict-area", json=_shifted(0), headers=h).status_code == 202
+        now[0] += 24 * 3600 + 1  # rolling 24 h window
+        assert c.post("/predict-area", json=_shifted(3), headers=h).status_code == 202
+
+
+def test_daily_limit_global(tmp_path):
+    with _client(tmp_path, max_jobs_per_day=2, max_jobs_per_ip_per_day=50) as c:
+        for i in range(2):
+            r = c.post("/predict-area", json=_shifted(i), headers={"X-Forwarded-For": f"9.9.9.{i}"})
+            assert r.status_code == 202
+            _wait(c, r.json()["job_id"])
+        r = c.post("/predict-area", json=_shifted(2), headers={"X-Forwarded-For": "9.9.9.77"})
+        assert r.status_code == 429 and "daily limit" in r.json()["detail"]
+
+
+def test_cache_hits_and_in_flight_hits_do_not_count_towards_daily_limits(tmp_path):
+    gate, started = threading.Event(), threading.Event()
+    try:
+        with _client(tmp_path, fetch=_stub_fetch(gate=gate, started=started),
+                     max_jobs_per_ip_per_day=1, max_jobs_per_day=1) as c:
+            h = {"X-Forwarded-For": "1.1.1.1"}
+            first = c.post("/predict-area", json=PAYLOAD, headers=h)
+            assert first.status_code == 202 and started.wait(10)
+            for _ in range(3):  # in flight: the same job, never a 429
+                assert c.post("/predict-area", json=PAYLOAD, headers=h).json()["job_id"] == first.json()["job_id"]
+            gate.set()
+            _wait(c, first.json()["job_id"])
+            for _ in range(3):  # finished (cached): same
+                assert c.post("/predict-area", json=PAYLOAD, headers=h).status_code == 202
+            assert c.post("/predict-area", json=_shifted(1), headers=h).status_code == 429
+    finally:
+        gate.set()
+
+
+def test_refused_submits_do_not_count_towards_daily_limits(tmp_path):
+    gate, started = threading.Event(), threading.Event()
+    try:
+        with _client(tmp_path, fetch=_stub_fetch(gate=gate, started=started), max_queue=1,
+                     max_jobs_per_day=2, max_jobs_per_ip_per_day=2) as c:
+            assert c.post("/predict-area", json=PAYLOAD, headers={"X-Forwarded-For": "1.1.1.1"}).status_code == 202
+            assert started.wait(10)
+            for i in range(1, 4):  # queue full: refused, and not counted
+                r = c.post("/predict-area", json=_shifted(i), headers={"X-Forwarded-For": "2.2.2.2"})
+                assert r.status_code == 429 and "queue" in r.json()["detail"]
+            gate.set()
+            _wait(c, c.post("/predict-area", json=PAYLOAD, headers={"X-Forwarded-For": "1.1.1.1"}).json()["job_id"])
+            assert c.post("/predict-area", json=_shifted(1), headers={"X-Forwarded-For": "2.2.2.2"}).status_code == 202
+    finally:
+        gate.set()
+
+
+def test_daily_limit_settings_from_env(monkeypatch):
+    st = main.Settings()
+    assert (st.max_jobs_per_ip_per_day, st.max_jobs_per_day) == (10, 100)
+    monkeypatch.setenv("MAX_JOBS_PER_IP_PER_DAY", "3")
+    monkeypatch.setenv("MAX_JOBS_PER_DAY", "7")
+    st = main.Settings.from_env()
+    assert (st.max_jobs_per_ip_per_day, st.max_jobs_per_day) == (3, 7)
 
 
 def test_earth_engine_unavailable(tmp_path):
