@@ -9,6 +9,7 @@ __pycache__/
 # Data, imagery, weights, run outputs: never committed
 data/
 outputs/
+/models/
 *.tif
 *.tiff
 *.pt
