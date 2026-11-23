@@ -1,6 +1,6 @@
 # Deployment
 
-The explorer is one FastAPI process (`app/main.py`) that serves the web page and the API, runs the ONNX model on CPU, and fetches Sentinel-2 composites from Google Earth Engine (GEE) for area requests. The image is built for Hugging Face Spaces (Docker SDK) but runs anywhere.
+The explorer is one FastAPI process (`app/main.py`) that serves the web page and the API, runs the ONNX model on CPU, and fetches Sentinel-2 composites from Google Earth Engine (GEE) for area requests. It ships as a Docker image that runs anywhere, and as a free Hugging Face Space (Gradio SDK, see below).
 
 The ONNX weights are not in the image or the repository. The container downloads them from the GitHub release `models-v2.0` at start and checks their sha256 against `app/model_card.json`, so the first start needs network access.
 
@@ -81,16 +81,18 @@ The key's JSON text goes into `EE_SERVICE_ACCOUNT_KEY` and the project id into `
 
 ## Hugging Face Space
 
-1. Create a new Space at <https://huggingface.co/new-space> with SDK **Docker** (blank template). Free CPU hardware is enough.
-2. Under **Settings, Variables and secrets**, add two secrets: `EE_SERVICE_ACCOUNT_KEY` (paste the whole JSON key) and `EE_PROJECT` (the Cloud project id). Variables such as `MAX_AREA_KM2` can be added the same way.
+Docker Spaces need a paid Hugging Face plan, so the free deployment uses the **Gradio SDK** on **CPU basic**. Gradio itself is not used: the Space runs [`space_app.py`](../space_app.py), which fetches the weights and serves the same FastAPI app as the Docker image.
+
+1. Create a new Space at <https://huggingface.co/new-space>: SDK **Gradio**, template **Blank**, hardware **CPU basic (free)**. Do not pick ZeroGPU: it only runs Gradio apps, and a free account cannot switch a Space from ZeroGPU back to CPU basic later.
+2. Under **Settings, Variables and secrets**, add `EE_SERVICE_ACCOUNT_KEY` as a **secret** (paste the whole JSON key; never as a variable, variables are public) and `EE_PROJECT` (the Cloud project id) as a variable or secret. Variables such as `MAX_AREA_KM2` can be added the same way.
 3. Push the repository:
 
    ```bash
    scripts/push_space.sh https://huggingface.co/spaces/<user>/<space>
    ```
 
-   The script snapshots `HEAD`, replaces `README.md` with [`docs/space/README.md`](space/README.md) (the Space card: it needs the YAML header with `sdk: docker` and `app_port: 7860`, which the GitHub README must not have) and force-pushes a single commit to the Space's `main`. The Space is a deploy target, so its history is disposable. Git asks for your Hugging Face username and a write access token as the password.
-4. The Space builds the Dockerfile, starts the container, downloads the weights and serves on port 7860. Build and start logs are on the Space's page.
+   The script snapshots `HEAD`, writes the Space card from [`docs/space/README.md`](space/README.md) with a Gradio header (`sdk_version`, `python_version: "3.12"`, `app_file: space_app.py`), replaces `requirements.txt` with `requirements-app.txt` (no torch), adds `packages.txt` (`libexpat1` for rasterio) and force-pushes a single commit to the Space's `main`. The Space is a deploy target, so its history is disposable. Git asks for your Hugging Face username and a write access token as the password. With a paid plan, `scripts/push_space.sh --docker <url>` deploys the Dockerfile instead (create the Space with SDK Docker).
+4. The Space installs the requirements, runs `space_app.py`, downloads the weights and serves on port 7860. Build and start logs are on the Space's page.
 
 To deploy a new version, commit on GitHub and run the script again. A new model release only needs a change of `app/model_card.json` and `MODEL_RELEASE`.
 
