@@ -193,3 +193,41 @@ def test_initialize_service_account(monkeypatch):
     monkeypatch.setattr(ee, "Initialize", lambda **kw: calls.append(kw))
     gee.initialize()
     assert calls == [{"project": "envproj"}]
+
+
+def test_initialize_strips_pasted_quotes(monkeypatch):
+    """Values pasted into a hosting UI often carry quotes or a trailing newline."""
+    import json
+
+    import ee
+
+    from deforest import gee
+
+    key = json.dumps({"client_email": "sa@proj.iam.gserviceaccount.com", "project_id": "keyproj",
+                      "private_key": "x"})
+    seen = {}
+    monkeypatch.setattr(ee, "ServiceAccountCredentials",
+                        lambda email, key_data=None: seen.update(email=email, key=key_data) or "CRED")
+    monkeypatch.setattr(ee, "Initialize", lambda credentials=None, project=None: seen.update(project=project))
+    monkeypatch.setenv("EE_SERVICE_ACCOUNT_KEY", f"  '{key}'\n")
+    monkeypatch.setenv("EE_PROJECT", ' "envproj"\n')
+    assert gee.initialize() == "envproj"
+    assert seen == {"email": "sa@proj.iam.gserviceaccount.com", "key": key, "project": "envproj"}
+
+
+def test_initialize_error_names_cause_without_emails(monkeypatch):
+    import ee
+
+    from deforest import gee
+
+    def boom(**kw):
+        raise ee.EEException("Caller sa@proj.iam.gserviceaccount.com lacks permission on project 'p'.")
+
+    monkeypatch.delenv("EE_SERVICE_ACCOUNT_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    monkeypatch.setenv("EE_PROJECT", "p")
+    monkeypatch.setattr(ee, "Initialize", boom)
+    with pytest.raises(RuntimeError) as err:
+        gee.initialize()
+    msg = str(err.value)
+    assert "lacks permission" in msg and "<email>" in msg and "gserviceaccount" not in msg

@@ -11,6 +11,7 @@ import io
 import json
 import math
 import os
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,10 +26,19 @@ from rasterio.warp import transform_bounds
 HANSEN_PARENT = "projects/earthengine-public/assets/UMD/hansen"
 
 
+def _env(name: str) -> str | None:
+    """An env var with surrounding whitespace and one pair of matching quotes removed: values pasted
+    into hosting UIs (e.g. Hugging Face Space variables) often carry them."""
+    v = (os.environ.get(name) or "").strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        v = v[1:-1].strip()
+    return v or None
+
+
 def _service_account() -> tuple[object, str | None] | None:
     """Service-account credentials from $EE_SERVICE_ACCOUNT_KEY (JSON text) or the file named by
     $GOOGLE_APPLICATION_CREDENTIALS. Returns (credentials, key's project_id), or None if neither is set."""
-    key = os.environ.get("EE_SERVICE_ACCOUNT_KEY")
+    key = _env("EE_SERVICE_ACCOUNT_KEY")
     if not key:
         path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
         if not path:
@@ -45,7 +55,7 @@ def initialize(project: str | None = None) -> str:
     Returns the project used. Raises if not authenticated."""
     sa = _service_account()
     credentials, key_project = sa if sa else (None, None)
-    project = project or os.environ.get("EE_PROJECT") or key_project
+    project = project or _env("EE_PROJECT") or key_project
     if not project and credentials is None:
         cred = Path(ee.oauth.get_credentials_path())
         if cred.exists():
@@ -58,7 +68,10 @@ def initialize(project: str | None = None) -> str:
         ee.Initialize(project=project, **kwargs)
     except Exception as e:  # noqa: BLE001 - re-raise with instructions
         hint = "Check the service-account key." if credentials is not None else "Run `earthengine authenticate`."
-        raise RuntimeError(f"Earth Engine init failed for project {project!r}. {hint}") from e
+        # the cause is shown on the public /health page: first line only, emails redacted
+        cause = re.sub(r"[\w.+-]+@[\w.-]+", "<email>", (str(e).strip().splitlines() or [""])[0])[:300]
+        raise RuntimeError(f"Earth Engine init failed for project {project!r}: {type(e).__name__}: {cause} "
+                           f"{hint}") from e
     return str(project)
 
 
