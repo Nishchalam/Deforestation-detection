@@ -65,7 +65,7 @@ curl http://localhost:7860/jobs/<job_id>                  # status, progress, th
 curl -o area.zip http://localhost:7860/jobs/<job_id>/download.zip
 ```
 
-`bbox` is `[west, south, east, north]` in degrees, at most 1 degree per side, and its 10 m grid must stay within 10,000 px per side and `MAX_AREA_KM2` (plus 20 %). The end of the chosen season must be in the past. Only new jobs count towards the daily limits; a repeated request is served from the cache or the running job. Uploads must be GeoTIFFs with 10 m pixels (+-5 %) in a projected CRS, with at most `MAX_AREA_KM2` / 100 m² pixels. Interactive docs are at `/docs`.
+`bbox` is `[west, south, east, north]` in degrees, at most 1 degree per side, and its 10 m grid must stay within 10,000 px per side and `MAX_AREA_KM2` (plus 20 %). The end of the chosen season must be in the past. Only new jobs count towards the daily limits; a repeated request is served from the cache or the running job. Uploads must be GeoTIFFs with 10 m pixels (+-5 %) in a projected CRS, with at most `MAX_AREA_KM2` / 100 m² pixels and at most 10,000 px per side. Interactive docs are at `/docs`.
 
 ## Earth Engine service account
 

@@ -276,6 +276,9 @@ def create_app(pipeline=None, fetch=area.fetch_inputs, ee_ready: Callable[[], tu
                             raise HTTPException(400, f"{name} has {src.width * src.height} px "
                                                      f"({src.width} x {src.height}), above the {max_px} px limit "
                                                      f"({settings.max_area_km2:g} km2 at 10 m)")
+                        if max(src.width, src.height) > area.MAX_GRID_SIDE_PX:  # thin strips pad to huge tiles
+                            raise HTTPException(400, f"{name} is {src.width} x {src.height} px; each side must be "
+                                                     f"at most {area.MAX_GRID_SIDE_PX} px")
                     arrays[name] = predict.read_composite(path)
                 except (ValueError, rasterio.errors.RasterioError) as e:
                     raise HTTPException(400, f"{name}: {e}") from e

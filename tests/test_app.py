@@ -181,6 +181,17 @@ def test_predict_limits_pixel_count(tmp_path):
         assert _upload(c, tmp_path, after=False).status_code == 200
 
 
+
+def test_predict_limits_side_length(tmp_path):
+    """R17: a thin strip within the pixel budget is refused; tile padding would make it tens of GB."""
+    path = tmp_path / "strip.tif"
+    with rasterio.open(path, "w", driver="GTiff", count=6, dtype="uint16", width=10_001, height=1,
+                       crs="EPSG:32720", transform=from_origin(500000, 8900000, 10, 10)) as dst:
+        dst.write(np.full((6, 1, 10_001), 1500, np.uint16))
+    with _client(tmp_path) as c:
+        r = c.post("/predict", files={"before": ("strip.tif", open(path, "rb"))})
+        assert r.status_code == 400 and "10000 px" in r.json()["detail"]
+
 def _vrt_of(tif: Path, path: Path) -> Path:
     bands = "".join(
         f'<VRTRasterBand dataType="UInt16" band="{i}"><SimpleSource><SourceFilename relativeToVRT="0">{tif}'
