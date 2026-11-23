@@ -81,9 +81,9 @@ The key's JSON text goes into `EE_SERVICE_ACCOUNT_KEY` and the project id into `
 
 ## Hugging Face Space
 
-Docker Spaces need a paid Hugging Face plan, so the free deployment uses the **Gradio SDK** on **CPU basic**. Gradio itself is not used: the Space runs [`space_app.py`](../space_app.py), which fetches the weights and serves the same FastAPI app as the Docker image.
+Docker Spaces need a paid Hugging Face plan, and on a free account Gradio Spaces only run on **ZeroGPU**, so the free deployment uses the **Gradio SDK** on **ZeroGPU**. Gradio itself is not used: the Space runs [`space_app.py`](../space_app.py), which fetches the weights and serves the same FastAPI app as the Docker image, with inference on the CPU. ZeroGPU will not start a Space without a `@spaces.GPU` function and a startup report, so `space_app.py` declares a never-called placeholder and wraps the app in the `spaces` middleware that sends the report.
 
-1. Create a new Space at <https://huggingface.co/new-space>: SDK **Gradio**, template **Blank**, hardware **CPU basic (free)**. Do not pick ZeroGPU: it only runs Gradio apps, and a free account cannot switch a Space from ZeroGPU back to CPU basic later.
+1. Create a new Space at <https://huggingface.co/new-space>: SDK **Gradio**, template **Blank**, hardware **ZeroGPU** (the only free choice; CPU basic needs PRO for Gradio Spaces).
 2. Under **Settings, Variables and secrets**, add `EE_SERVICE_ACCOUNT_KEY` as a **secret** (paste the whole JSON key; never as a variable, variables are public) and `EE_PROJECT` (the Cloud project id) as a variable or secret. Variables such as `MAX_AREA_KM2` can be added the same way.
 3. Push the repository:
 

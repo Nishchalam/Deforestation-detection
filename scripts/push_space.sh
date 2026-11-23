@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Publish the current HEAD to a Hugging Face Space.
 #
-#   scripts/push_space.sh https://huggingface.co/spaces/<user>/<space>            # Gradio SDK (free CPU)
+#   scripts/push_space.sh https://huggingface.co/spaces/<user>/<space>            # Gradio SDK (free, ZeroGPU)
 #   scripts/push_space.sh --docker https://huggingface.co/spaces/<user>/<space>   # Docker SDK (paid plan)
 #
 # Gradio SDK (default): Docker Spaces need a paid plan, so the free Space uses the Gradio SDK on
-# CPU basic. The snapshot's requirements.txt is replaced by requirements-app.txt (no torch) and
+# ZeroGPU (see space_app.py). The snapshot's requirements.txt is replaced by requirements-app.txt (no torch) and
 # the Space runs space_app.py, which serves the same FastAPI app as the Docker image.
 #
 # Refuses any remote that is not a Hugging Face Space URL, or that equals this repo's origin.
