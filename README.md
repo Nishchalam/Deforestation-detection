@@ -1,5 +1,7 @@
 # Deforestation detection in Rondônia from Sentinel-2
 
+**Try it live: [Deforestation explorer on Hugging Face](https://huggingface.co/spaces/nishchalamukku/Deforestation_project)**. Pick any area and a start and end year to get forest-loss maps, hectares and a comparison with Hansen.
+
 Per-pixel forest mapping for **Ariquemes, Rondônia, Brazil** (bbox −63.0, −10.5, −62.8, −10.3) in **2018 and 2022**, built on real Sentinel-2 imagery and labelled with [Hansen Global Forest Change](https://glad.earthengine.app/view/global-forest-change). Forest loss is defined as forest(2018) AND NOT forest(2022). Every number in this README is generated from `reports/metrics/*.json` by [`scripts/readme_tables.py`](scripts/readme_tables.py).
 
 > **Status: v2.** Data, labels, split, baselines, U-Nets and change detection run end to end via `scripts/` and [`notebooks/end_to_end.ipynb`](notebooks/end_to_end.ipynb). The ONNX model, API, explorer website and Docker image are in [Deployment](#deployment). The v1 "deforestation" results (IoU 0.975) were computed on synthetic scenes stitched from EuroSAT tiles and have been removed (see [PR #2](https://github.com/Nishchalam/Deforestation-detection/pull/2)).
@@ -153,6 +155,8 @@ python scripts/predict.py --bbox -63.0 -10.5 -62.8 -10.3 --years 2018 2022 --out
 All settings are in [`configs/ariquemes.yaml`](configs/ariquemes.yaml). Data, imagery and weights are not committed.
 
 ## Deployment
+
+**Live website: <https://huggingface.co/spaces/nishchalamukku/Deforestation_project>** (free hosting, so a request can wait in a queue; each analysis takes a few minutes while Earth Engine prepares the images).
 
 The **explorer** is a web page and API that runs the exported U-Net on CPU. Draw an area on the map to get forest masks, a loss map and hectares next to the Hansen reference. Uploading two 10 m composites gives the same masks and hectares but no Hansen comparison. The model was trained only on Ariquemes, so accuracy elsewhere is unmeasured.
 
